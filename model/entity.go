@@ -20,7 +20,9 @@ type BookRealmEntity struct {
 
 type AccountTableEntity struct {
 	gorm.Model
-	AccountName string `gorm:"accountName"`
+	BookRealmEntityID uint
+	BookRealmEntity   BookRealmEntity
+	AccountName       string `gorm:"accountName"`
 }
 
 type BookingEntity struct {

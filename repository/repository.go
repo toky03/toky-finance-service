@@ -2,19 +2,19 @@ package repository
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/toky03/toky-finance-accounting-service/model"
-	"github.com/uber/jaeger-client-go/crossdock/log"
 )
 
-type BookingRepositoryImpl struct {
+type RepositoryImpl struct {
 	connection *gorm.DB
 }
 
-func CreateBookingRepository() *BookingRepositoryImpl {
+func CreateRepository() *RepositoryImpl {
 	username := os.Getenv("DB_USER")
 	if username == "" {
 		username = "tokyuser"
@@ -43,35 +43,61 @@ func CreateBookingRepository() *BookingRepositoryImpl {
 		log.Printf("Error with Automigrate: %v", err)
 	}
 
-	return &BookingRepositoryImpl{
+	return &RepositoryImpl{
 		connection: conn,
 	}
 }
 
 // FindAllBookRealms returns all Bookrealms
-func (r *BookingRepositoryImpl) FindAllBookRealms() (bookRealms []model.BookRealmEntity) {
-	r.connection.Find(&bookRealms)
+func (r *RepositoryImpl) FindAllBookRealms() (bookRealms []model.BookRealmEntity, err error) {
+	err = r.connection.Find(&bookRealms).Error
 	return
 }
 
 // FindApplicationUsersByID search multiple application users
-func (r *BookingRepositoryImpl) FindApplicationUsersByID(applicationUserIDs []uint) (applicationUsers []model.ApplicationUserEntity, err error) {
+func (r *RepositoryImpl) FindApplicationUsersByID(applicationUserIDs []uint) (applicationUsers []model.ApplicationUserEntity, err error) {
 	err = r.connection.Where(applicationUserIDs).Find(&applicationUsers).Error
 	return
 }
 
 // FindApplicationUserByID search for a single application user
-func (r *BookingRepositoryImpl) FindApplicationUserByID(applicationUserID uint) (applicationUser model.ApplicationUserEntity, err error) {
+func (r *RepositoryImpl) FindApplicationUserByID(applicationUserID uint) (applicationUser model.ApplicationUserEntity, err error) {
 	err = r.connection.Where(applicationUserID).First(&applicationUser).Error
 	return
 }
 
 // PersistBookRealm Create new incance of a BookRealm
-func (r *BookingRepositoryImpl) PersistBookRealm(bookRealm model.BookRealmEntity) error {
+func (r *RepositoryImpl) PersistBookRealm(bookRealm model.BookRealmEntity) error {
 	return r.connection.Create(&bookRealm).Error
 }
 
 // PersistApplicationUser creates new instance of a ApplicationUser
-func (r *BookingRepositoryImpl) PersistApplicationUser(applicationUser model.ApplicationUserEntity) error {
+func (r *RepositoryImpl) PersistApplicationUser(applicationUser model.ApplicationUserEntity) error {
 	return r.connection.Create(&applicationUser).Error
+}
+
+func (r *RepositoryImpl) FindAccountsByBookId(bookId uint) (accountTableEntities []model.AccountTableEntity, err error) {
+	err = r.connection.Model(&bookId).Related(&accountTableEntities).Error
+	return
+}
+
+func (r *RepositoryImpl) FindRelatedHabenBuchungen(accountTable model.AccountTableEntity) (bookingEntities []model.BookingEntity, err error) {
+	err = r.connection.Model(&accountTable).Association("HabenBookingAccount").Find(&bookingEntities).Error
+	return
+}
+func (r *RepositoryImpl) FindRelatedSollBuchungen(accountTable model.AccountTableEntity) (bookingEntities []model.BookingEntity, err error) {
+	err = r.connection.Model(&accountTable).Association("SollBookingAccount").Find(&bookingEntities).Error
+	return
+}
+
+func (r *RepositoryImpl) CreateAccount(entity model.AccountTableEntity) error {
+	return r.connection.Create(&entity).Error
+}
+
+func (r *RepositoryImpl) FindAccountByID(id uint) (accountTable model.AccountTableEntity, err error) {
+	err = r.connection.Where(id).First(&accountTable).Error
+	return
+}
+func (r *RepositoryImpl) PersistBooking(entity model.BookingEntity) error {
+	return r.connection.Create(&entity).Error
 }

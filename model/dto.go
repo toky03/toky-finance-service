@@ -23,6 +23,7 @@ type AccountTableDTO struct {
 }
 
 type TableBookingDTO struct {
+	BookingID      string `json:"bookingID"`
 	Date           string `json:"date"`
 	Column         string `json:"column"`
 	BookingAccount string `json:"bookingAccount"`

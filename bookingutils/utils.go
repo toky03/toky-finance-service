@@ -14,3 +14,12 @@ func StringSliceToInt(strings []string) (convertedUints []uint, err error) {
 	}
 	return
 }
+
+func StringToUint(input string) (uint, error) {
+	converted, err := strconv.Atoi(str)
+	return uint(converted), err
+}
+
+func UintToString(uintValue uint) string {
+	return strconv.FormatUint(uint64(uintValue), 10)
+}

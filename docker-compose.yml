@@ -3,9 +3,10 @@ version: '3'
 services:
     toky-finance-service:
         build: .
-        depends_on: finance-db
+        depends_on:
+            - finance-db
         ports:
-            - "8080:8080"
+            - "3000:3000"
         environment: 
             - DB_NAME=tokyfinance
             - DB_PASS=pwd
@@ -15,9 +16,9 @@ services:
             - DB_PORT=5432
     finance-db:
         image: postgres:9.6
-        ports:
+#        ports:
         #- "5454:5432"
         environment: 
-        - POSTGRES_DB=tokyfinance
-        - POSTGRES_PASSWORD=pwd
-        - POSTGRES_USER=tokyuser
+            - POSTGRES_DB=tokyfinance
+            - POSTGRES_PASSWORD=pwd
+            - POSTGRES_USER=tokyuser

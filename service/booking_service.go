@@ -1,16 +1,15 @@
 package service
 
 import (
-	"log"
-	"strconv"
-
 	"github.com/toky03/toky-finance-accounting-service/bookingutils"
 	"github.com/toky03/toky-finance-accounting-service/model"
 	"github.com/toky03/toky-finance-accounting-service/repository"
+	"log"
+	"strconv"
 )
 
 type BookingRepository interface {
-	FindAllBookRealms() []model.BookRealmEntity
+	FindAllBookRealms() ([]model.BookRealmEntity, error)
 	FindApplicationUsersByID([]uint) ([]model.ApplicationUserEntity, error)
 	FindApplicationUserByID(uint) (model.ApplicationUserEntity, error)
 	PersistBookRealm(model.BookRealmEntity) error
@@ -21,20 +20,16 @@ type BookServiceImpl struct {
 
 func CreateBookService() *BookServiceImpl {
 	return &BookServiceImpl{
-		BookingRepository: repository.CreateBookingRepository(),
+		BookingRepository: repository.CreateRepository(),
 	}
 }
 
-func (r *BookServiceImpl) FindAllBookRealms() (bookRealmDtos []model.BookRealmDTO) {
-
-	bookRealmEntities := r.BookingRepository.FindAllBookRealms()
-
+func (r *BookServiceImpl) FindAllBookRealms() (bookRealmDtos []model.BookRealmDTO, err error) {
+	bookRealmEntities, err := r.BookingRepository.FindAllBookRealms()
 	bookRealmDtos = make([]model.BookRealmDTO, 0, len(bookRealmEntities))
-
 	for _, bookRealmEntity := range bookRealmEntities {
 		bookRealmDtos = append(bookRealmDtos, convertBookRealmEntityToDto(bookRealmEntity))
 	}
-
 	return
 }
 
