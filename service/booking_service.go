@@ -1,11 +1,12 @@
 package service
 
 import (
+	"log"
+	"strconv"
+
 	"github.com/toky03/toky-finance-accounting-service/bookingutils"
 	"github.com/toky03/toky-finance-accounting-service/model"
 	"github.com/toky03/toky-finance-accounting-service/repository"
-	"log"
-	"strconv"
 )
 
 type BookingRepository interface {
@@ -42,7 +43,9 @@ func (r *BookServiceImpl) CreateBookRealm(bookRealm model.BookRealmDTO, userId s
 	}
 	readUserIds, err := bookingutils.StringSliceToInt(bookRealm.ReadAccess)
 	readUsers, err := r.BookingRepository.FindApplicationUsersByID(readUserIds)
-
+	if err != nil {
+		return err
+	}
 	var ownerID int
 	if bookRealm.Owner != "" {
 		ownerID, err = strconv.Atoi(bookRealm.Owner)
@@ -52,6 +55,7 @@ func (r *BookServiceImpl) CreateBookRealm(bookRealm model.BookRealmDTO, userId s
 	owner, err := r.BookingRepository.FindApplicationUserByID(uint(ownerID))
 	if err != nil {
 		log.Printf("could not find User %v", err)
+		return err
 	}
 
 	bookRealmEntity := model.BookRealmEntity{

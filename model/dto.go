@@ -1,6 +1,7 @@
 package model
 
 type ApplicationUserDTO struct {
+	UserID    string `json:"userId"`
 	UserName  string `json:"userName"`
 	FirstName string `json:"firstName"`
 	LastName  string `json:"lastName"`

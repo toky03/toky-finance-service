@@ -2,9 +2,12 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/http"
+
+	"github.com/gorilla/context"
 	"github.com/toky03/toky-finance-accounting-service/model"
 	"github.com/toky03/toky-finance-accounting-service/service"
-	"net/http"
 )
 
 // BookRealmService interface to define Contract
@@ -15,7 +18,7 @@ type BookRealmService interface {
 
 type UserService interface {
 	CreateUser(model.ApplicationUserDTO) error
-	ReadAllUsers() ([]model.ApplicationUserDTO, error)
+	ReadAllUsers(limit, searchTerm string) ([]model.ApplicationUserDTO, error)
 }
 
 // BookRealmHandler implementaion of Handler
@@ -36,10 +39,12 @@ func (h *BookRealmHandler) ReadBookRealms(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	}
 	js, err := json.Marshal(bookRealms)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
@@ -52,11 +57,14 @@ func (h *BookRealmHandler) CreateBookRealm(w http.ResponseWriter, r *http.Reques
 	err := json.NewDecoder(r.Body).Decode(&bookRealm)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
+	userName := context.Get(r, "user-id")
 
-	err = h.BookRealmService.CreateBookRealm(bookRealm, r.Header.Get("Username"))
+	err = h.BookRealmService.CreateBookRealm(bookRealm, fmt.Sprint(userName))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	w.WriteHeader(http.StatusCreated)
 }
@@ -66,15 +74,19 @@ func (h *BookRealmHandler) UpdateBookRealm(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *BookRealmHandler) ReadAccountingUsers(w http.ResponseWriter, r *http.Request) {
-	// TODO limit einfügen
-	applicationUsers, err := h.UserService.ReadAllUsers()
+	queries := r.URL.Query()
+	limit := queries.Get("limit")
+	searchTerm := queries.Get("searchTerm")
+	applicationUsers, err := h.UserService.ReadAllUsers(limit, searchTerm)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	}
 	js, err := json.Marshal(applicationUsers)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
@@ -87,11 +99,13 @@ func (h *BookRealmHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&applicationUser)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	err = h.UserService.CreateUser(applicationUser)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	w.WriteHeader(http.StatusCreated)
 

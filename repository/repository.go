@@ -39,7 +39,7 @@ func CreateRepository() *RepositoryImpl {
 		panic(err)
 	}
 
-	if err := conn.AutoMigrate(&model.BookRealmEntity{}).Error; err != nil {
+	if err := conn.AutoMigrate(&model.ApplicationUserEntity{}, &model.BookRealmEntity{}, &model.AccountTableEntity{}, &model.BookingEntity{}).Error; err != nil {
 		log.Printf("Error with Automigrate: %v", err)
 	}
 
@@ -50,7 +50,18 @@ func CreateRepository() *RepositoryImpl {
 
 // FindAllBookRealms returns all Bookrealms
 func (r *RepositoryImpl) FindAllBookRealms() (bookRealms []model.BookRealmEntity, err error) {
-	err = r.connection.Find(&bookRealms).Error
+	err = r.connection.Preload("Owner").Preload("WriteAccess").Preload("ReadAccess").Find(&bookRealms).Error
+	return
+}
+
+func (r *RepositoryImpl) FindBookRealmByID(bookingID uint) (bookRealm model.BookRealmEntity, err error) {
+	err = r.connection.Where(bookingID).Find(&bookRealm).Error
+	return
+}
+
+// FindAllApplicationUsers returns all ApplicationUsers
+func (r *RepositoryImpl) FindAllApplicationUsers(limit int, searchTerm string) (applicationUsers []model.ApplicationUserEntity, err error) {
+	err = r.connection.Limit(limit).Where("user_name LIKE ?", "%"+searchTerm+"%").Find(&applicationUsers).Error
 	return
 }
 
@@ -77,16 +88,16 @@ func (r *RepositoryImpl) PersistApplicationUser(applicationUser model.Applicatio
 }
 
 func (r *RepositoryImpl) FindAccountsByBookId(bookId uint) (accountTableEntities []model.AccountTableEntity, err error) {
-	err = r.connection.Model(&bookId).Related(&accountTableEntities).Error
+	err = r.connection.Where("book_realm_entity_id = ?", bookId).Order("account_name").Find(&accountTableEntities).Error
 	return
 }
 
 func (r *RepositoryImpl) FindRelatedHabenBuchungen(accountTable model.AccountTableEntity) (bookingEntities []model.BookingEntity, err error) {
-	err = r.connection.Model(&accountTable).Association("HabenBookingAccount").Find(&bookingEntities).Error
+	err = r.connection.Preload("SollBookingAccount").Where("haben_booking_account_id = ?", accountTable.Model.ID).Order("date desc").Find(&bookingEntities).Error
 	return
 }
 func (r *RepositoryImpl) FindRelatedSollBuchungen(accountTable model.AccountTableEntity) (bookingEntities []model.BookingEntity, err error) {
-	err = r.connection.Model(&accountTable).Association("SollBookingAccount").Find(&bookingEntities).Error
+	err = r.connection.Preload("HabenBookingAccount").Where("soll_booking_account_id = ?", accountTable.Model.ID).Order("date desc").Find(&bookingEntities).Error
 	return
 }
 

@@ -30,6 +30,6 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/group /etc/group
 
-COPY --from=builder /go/bin/idserver /go/bin/toky-finance-service
+COPY --from=builder /go/bin/toky-finance-service /go/bin/toky-finance-service
 USER appuser:appuser
 ENTRYPOINT ["/go/bin/toky-finance-service"]
