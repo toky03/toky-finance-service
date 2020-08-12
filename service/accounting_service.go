@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -45,12 +44,14 @@ func (s *AccountingServiceImpl) ReadAccountOptionsFromBook(bookId string) ([]mod
 	accountOptionDTOs := make([]model.AccountOptionDTO, 0, len(accountEntities))
 
 	for _, accountEntity := range accountEntities {
-
 		accountOptionDTO := model.AccountOptionDTO{
-			AccountName: accountEntity.AccountName,
-			Category:    accountEntity.Category,
-			Description: accountEntity.Description,
-			Id:          bookingutils.UintToString(accountEntity.Model.ID),
+			AccountName:  accountEntity.AccountName,
+			Id:           bookingutils.UintToString(accountEntity.Model.ID),
+			Type:         accountEntity.Type,
+			Category:     accountEntity.Category,
+			Description:  accountEntity.Description,
+			SubCategory:  accountEntity.SubCategory,
+			StartBalance: accountEntity.StartBalance,
 		}
 		accountOptionDTOs = append(accountOptionDTOs, accountOptionDTO)
 	}
@@ -58,29 +59,57 @@ func (s *AccountingServiceImpl) ReadAccountOptionsFromBook(bookId string) ([]mod
 	return accountOptionDTOs, nil
 }
 
-func (s *AccountingServiceImpl) ReadBallanceSheet(bookId string) ([]model.AccountTableDTO, error) {
+func (s *AccountingServiceImpl) ReadBallanceSheet(bookId string) (model.ClosingSheetStatements, error) {
 	accountTables, err := s.ReadAccountsFromBook(bookId)
 	if err != nil {
-		return nil, err
+		return model.ClosingSheetStatements{}, err
 	}
-
-	balanceSheetEntries = model.AccountTableDTO
-	var earnings model.AccountOptionDTO
-
+	workingCapitalEntries := []model.ClosingStatementEntry{}
+	capitalAssets := []model.ClosingStatementEntry{}
+	borrowedCapital := []model.ClosingStatementEntry{}
+	equity := []model.ClosingStatementEntry{}
+	gain := []model.ClosingStatementEntry{}
+	loss := []model.ClosingStatementEntry{}
 	for _, accountTable := range accountTables {
-		switch category := accountTable.Category; category {
-		case "active":
-
-		case "passive":
-
-		case "gain":
-		case "loss":
-
-		default:
-			return nil, errors.New(fmt.Sprint("Wrong Account category: %v", category))
-
+		accountEntry := model.ClosingStatementEntry{
+			Name:    accountTable.AccountName,
+			Ammount: accountTable.AccountSum,
+		}
+		if accountTable.Type == "inventory" {
+			if accountTable.Type == "active" {
+				if accountTable.SubCategory == "workingCapital" {
+					workingCapitalEntries = append(workingCapitalEntries, accountEntry)
+				} else {
+					capitalAssets = append(capitalAssets, accountEntry)
+				}
+			} else {
+				if accountTable.SubCategory == "borrowedCapital" {
+					borrowedCapital = append(borrowedCapital, accountEntry)
+				} else {
+					equity = append(equity, accountEntry)
+				}
+			}
+		} else {
+			if accountTable.Category == "gain" {
+				gain = append(gain, accountEntry)
+			} else {
+				loss = append(loss, accountEntry)
+			}
 		}
 	}
+	return model.ClosingSheetStatements{
+		BalanceSheet: model.BalanceSheet{
+			WorkingCapital: workingCapitalEntries,
+			Debt:           borrowedCapital,
+			CapitalAsset:   capitalAssets,
+			Equity:         equity,
+			BalanceSum:     "",
+		},
+		IncomeStatement: model.IncomeStatement{
+			Creds: loss,
+			Debts: gain,
+		},
+	}, nil
 
 }
 
@@ -102,11 +131,13 @@ func (s *AccountingServiceImpl) ReadAccountsFromBook(bookId string) ([]model.Acc
 			return nil, err
 		}
 		habenBuchungenDTOs := convertBookingEntitiesToDTOs(habenBuchungen, "haben")
-		concatenatedBuchungDTOS, sum, err := concatenateBuchungen(sollBuchungenDTOs, habenBuchungenDTOs)
+		concatenatedBuchungDTOS := concatenateSorted(sollBuchungenDTOs, habenBuchungenDTOs)
 		if err != nil {
 			return nil, err
 		}
-		accountDto, err := convertAccountEntityToDTO(accountEntity, concatenatedBuchungDTOS, sum)
+		buchungenWithStartBalance := appendStartBalance(accountEntity, concatenatedBuchungDTOS)
+		buchungenWithSaldo, sum, err := appendSaldo(buchungenWithStartBalance)
+		accountDto, err := convertAccountEntityToDTO(accountEntity, buchungenWithSaldo, sum)
 		if err != nil {
 			return nil, err
 		}
@@ -120,15 +151,21 @@ func (s *AccountingServiceImpl) CreateAccount(bookID string, account model.Accou
 	if err != nil {
 		return err
 	}
+	if err = validateAccount(account); err != nil {
+		return err
+	}
 	bookingEntity, err := s.AccountingRepository.FindBookRealmByID(bookIdUint)
 	if err != nil {
 		return err
 	}
 	accountEntity := model.AccountTableEntity{
 		BookRealmEntity: bookingEntity,
-		AccountName:     account.AccountName,
 		Category:        account.Category,
 		Description:     account.Description,
+		AccountName:     account.AccountName,
+		Type:            account.Type,
+		SubCategory:     account.SubCategory,
+		StartBalance:    account.StartBalance,
 	}
 	return s.AccountingRepository.CreateAccount(accountEntity)
 }
@@ -163,75 +200,45 @@ func (s *AccountingServiceImpl) CreateBooking(booking model.BookingDTO) error {
 	return s.AccountingRepository.PersistBooking(bookingEntity)
 }
 
-func concatenateBuchungen(sollBuchungen, habenBuchungen []model.TableBookingDTO) ([]model.TableBookingDTO, string, error) {
-	sumSoll, err := calculateSum(sollBuchungen)
-	if err != nil {
-		return nil, "", err
-	}
-	sumHaben, err := calculateSum(habenBuchungen)
-	if err != nil {
-		return nil, "", err
-	}
-	habenAndSoll := append(habenBuchungen, sollBuchungen...)
+func concatenateSorted(sollBuchungen, habenBuchungen []model.TableBookingDTO) []model.TableBookingDTO {
+	habenAndSoll := append(sollBuchungen, habenBuchungen...)
 	sort.SliceStable(habenAndSoll, func(i, j int) bool {
 		return habenAndSoll[i].Date < habenAndSoll[j].Date
 	})
+	return habenAndSoll
+}
+
+func appendSaldo(buchungen []model.TableBookingDTO) ([]model.TableBookingDTO, string, error) {
+	sumSoll, err := calculateSum(buchungen, "soll")
+	if err != nil {
+		return nil, "", err
+	}
+	sumHaben, err := calculateSum(buchungen, "haben")
+	if err != nil {
+		return nil, "", err
+	}
+
 	if sumSoll > sumHaben {
 		saldierung := model.TableBookingDTO{BookingAccount: "Saldierung", Column: "haben", Ammount: bookingutils.FormatFloatToAmmount(sumSoll - sumHaben)}
-		return append(habenAndSoll, saldierung), bookingutils.FormatFloatToAmmount(sumSoll), nil
+		return append(buchungen, saldierung), bookingutils.FormatFloatToAmmount(sumSoll), nil
 	}
 	if sumSoll < sumHaben {
 		saldierung := model.TableBookingDTO{BookingAccount: "Saldierung", Column: "soll", Ammount: bookingutils.FormatFloatToAmmount(sumHaben - sumSoll)}
-		return append(habenAndSoll, saldierung), bookingutils.FormatFloatToAmmount(sumHaben), nil
+		return append(buchungen, saldierung), bookingutils.FormatFloatToAmmount(sumHaben), nil
 	}
-	return habenAndSoll, bookingutils.FormatFloatToAmmount(sumHaben), nil
-
+	return buchungen, bookingutils.FormatFloatToAmmount(sumHaben), nil
 }
 
-func calculateSum(buchungen []model.TableBookingDTO) (float64, error) {
+func calculateSum(buchungen []model.TableBookingDTO, column string) (float64, error) {
 	sum := 0.0
 	for _, booking := range buchungen {
-		ammount, err := strconv.ParseFloat(booking.Ammount, 64)
-		if err != nil {
-			return 0.0, err
+		if booking.Column == column {
+			ammount, err := strconv.ParseFloat(booking.Ammount, 64)
+			if err != nil {
+				return 0.0, err
+			}
+			sum += ammount
 		}
-		sum += ammount
 	}
 	return sum, nil
-}
-
-func convertBookingEntitiesToDTOs(bookigEntities []model.BookingEntity, column string) (bookingDTOS []model.TableBookingDTO) {
-	bookingDTOS = make([]model.TableBookingDTO, 0, len(bookigEntities))
-
-	for _, bookingEntity := range bookigEntities {
-		var bookingAccount string
-		if column == "haben" {
-			bookingAccount = bookingEntity.SollBookingAccount.AccountName
-		} else {
-			bookingAccount = bookingEntity.HabenBookingAccount.AccountName
-		}
-		bookingID := bookingutils.UintToString(bookingEntity.Model.ID)
-		bookingDTO := model.TableBookingDTO{
-			BookingID:      bookingID,
-			Ammount:        bookingEntity.Ammount,
-			Date:           bookingEntity.Date,
-			Description:    bookingEntity.Description,
-			Column:         column,
-			BookingAccount: bookingAccount,
-		}
-		bookingDTOS = append(bookingDTOS, bookingDTO)
-	}
-	return
-}
-
-func convertAccountEntityToDTO(entity model.AccountTableEntity, buchungen []model.TableBookingDTO, sum string) (model.AccountTableDTO, error) {
-
-	return model.AccountTableDTO{
-		AccountID:   bookingutils.UintToString(entity.Model.ID),
-		AccountName: entity.AccountName,
-		Category:    entity.Category,
-		Description: entity.Description,
-		Bookings:    buchungen,
-		AccountSum:  sum,
-	}, nil
 }

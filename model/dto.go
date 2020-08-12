@@ -21,7 +21,9 @@ type AccountTableDTO struct {
 	AccountID   string            `json:"accountId"`
 	Bookings    []TableBookingDTO `json:"bookings"`
 	AccountSum  string            `json:"accountSum"`
+	Type        string            `json:"type"`
 	Category    string            `json:"category"`
+	SubCategory string            `json:"subCategory"`
 	Description string            `json:"description"`
 }
 
@@ -35,10 +37,13 @@ type TableBookingDTO struct {
 }
 
 type AccountOptionDTO struct {
-	AccountName string `json:"accountName"`
-	Id          string `json:"id"`
-	Category    string `json:"category"`
-	Description string `json:"description"`
+	AccountName  string `json:"accountName"`
+	Id           string `json:"id"`
+	Type         string `json:"type"`
+	Category     string `json:"category"`
+	Description  string `json:"description"`
+	SubCategory  string `json:"subCategory"`
+	StartBalance string `json:"startBalance"`
 }
 
 type BookingDTO struct {
@@ -47,4 +52,28 @@ type BookingDTO struct {
 	Description  string `json:"description"`
 	Date         string `json:"date"`
 	Ammount      string `json:"ammount"`
+}
+
+type ClosingSheetStatements struct {
+	BalanceSheet    BalanceSheet    `json:"balanceSheet"`
+	IncomeStatement IncomeStatement `json:"incomeStatement"`
+}
+
+type BalanceSheet struct {
+	WorkingCapital []ClosingStatementEntry `json:"workingCapital"`
+	Debt           []ClosingStatementEntry `json:"debt"`
+	CapitalAsset   []ClosingStatementEntry `json:"capitalAsset"`
+	Equity         []ClosingStatementEntry `json:"equity"`
+	BalanceSum     string                  `json:"balanceSum"`
+}
+
+type IncomeStatement struct {
+	Creds      []ClosingStatementEntry `json:"creds"`
+	Debts      []ClosingStatementEntry `json:"debts"`
+	balanceSum string                  `json:"balanceSum"`
+}
+
+type ClosingStatementEntry struct {
+	Name    string `json:"name"`
+	Ammount string `json:"ammount"`
 }

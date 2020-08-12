@@ -26,6 +26,9 @@ type AccountTableEntity struct {
 	Category          string          `gorm:"category"`
 	Description       string          `gorm:"description"`
 	AccountName       string          `gorm:"accountName"`
+	Type              string          `gorm:"type"`
+	SubCategory       string          `gorm:"sub_category"`
+	StartBalance      string          `gorm:"start_balance"`
 }
 
 type BookingEntity struct {
