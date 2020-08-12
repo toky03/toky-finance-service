@@ -21,6 +21,8 @@ type AccountTableDTO struct {
 	AccountID   string            `json:"accountId"`
 	Bookings    []TableBookingDTO `json:"bookings"`
 	AccountSum  string            `json:"accountSum"`
+	Category    string            `json:"category"`
+	Description string            `json:"description"`
 }
 
 type TableBookingDTO struct {

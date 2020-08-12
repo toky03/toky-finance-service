@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -55,6 +56,32 @@ func (s *AccountingServiceImpl) ReadAccountOptionsFromBook(bookId string) ([]mod
 	}
 
 	return accountOptionDTOs, nil
+}
+
+func (s *AccountingServiceImpl) ReadBallanceSheet(bookId string) ([]model.AccountTableDTO, error) {
+	accountTables, err := s.ReadAccountsFromBook(bookId)
+	if err != nil {
+		return nil, err
+	}
+
+	balanceSheetEntries = model.AccountTableDTO
+	var earnings model.AccountOptionDTO
+
+	for _, accountTable := range accountTables {
+		switch category := accountTable.Category; category {
+		case "active":
+
+		case "passive":
+
+		case "gain":
+		case "loss":
+
+		default:
+			return nil, errors.New(fmt.Sprint("Wrong Account category: %v", category))
+
+		}
+	}
+
 }
 
 func (s *AccountingServiceImpl) ReadAccountsFromBook(bookId string) ([]model.AccountTableDTO, error) {
@@ -202,6 +229,8 @@ func convertAccountEntityToDTO(entity model.AccountTableEntity, buchungen []mode
 	return model.AccountTableDTO{
 		AccountID:   bookingutils.UintToString(entity.Model.ID),
 		AccountName: entity.AccountName,
+		Category:    entity.Category,
+		Description: entity.Description,
 		Bookings:    buchungen,
 		AccountSum:  sum,
 	}, nil
