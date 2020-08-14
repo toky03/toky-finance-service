@@ -15,6 +15,7 @@ type AccountingHandler interface {
 	CreateBooking(w http.ResponseWriter, r *http.Request)
 	CreateAccount(w http.ResponseWriter, r *http.Request)
 	SaveAccountOption(w http.ResponseWriter, r *http.Request)
+	ReadClosingStatements(w http.ResponseWriter, r *http.Request)
 }
 
 type BookHandler interface {
@@ -46,6 +47,7 @@ func main() {
 	r.HandleFunc("/api/book/{bookID}", bookHandler.UpdateBookRealm).Methods("PUT")
 	r.HandleFunc("/api/book/{bookID}/account", accountingHandler.ReadAccounts).Methods("GET")
 	r.HandleFunc("/api/book/{bookID}/accountOption", accountingHandler.ReadAccountOptions).Methods("GET")
+	r.HandleFunc("/api/book/{bookID}/closingStatements", accountingHandler.ReadClosingStatements).Methods("GET")
 	r.HandleFunc("/api/book/{bookID}/account", accountingHandler.CreateAccount).Methods("POST")
 	r.HandleFunc("/api/book/{bookID}/booking", accountingHandler.CreateBooking).Methods("POST")
 	r.HandleFunc("/api/user", bookHandler.CreateUser).Methods("POST")

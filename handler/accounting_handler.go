@@ -14,6 +14,7 @@ type AccountingService interface {
 	ReadAccountOptionsFromBook(string) ([]model.AccountOptionDTO, error)
 	CreateAccount(bookID string, account model.AccountOptionDTO) error
 	CreateBooking(booking model.BookingDTO) error
+	ReadClosingStatements(bookID string) (model.ClosingSheetStatements, error)
 }
 
 // BookRealmHandler implementaion of Handler
@@ -55,6 +56,23 @@ func (h *AccountingHandlerImpl) ReadAccountOptions(w http.ResponseWriter, r *htt
 		w.Write([]byte(err.Error()))
 	}
 	js, err := json.Marshal(accounts)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
+
+}
+
+func (h *AccountingHandlerImpl) ReadClosingStatements(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	bookID := vars["bookID"]
+	ClosingSheetStatements, err := h.AccountingService.ReadClosingStatements(bookID)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+	}
+	js, err := json.Marshal(ClosingSheetStatements)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}

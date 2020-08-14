@@ -59,7 +59,7 @@ func (s *AccountingServiceImpl) ReadAccountOptionsFromBook(bookId string) ([]mod
 	return accountOptionDTOs, nil
 }
 
-func (s *AccountingServiceImpl) ReadBallanceSheet(bookId string) (model.ClosingSheetStatements, error) {
+func (s *AccountingServiceImpl) ReadClosingStatements(bookId string) (model.ClosingSheetStatements, error) {
 	accountTables, err := s.ReadAccountsFromBook(bookId)
 	if err != nil {
 		return model.ClosingSheetStatements{}, err
@@ -73,10 +73,10 @@ func (s *AccountingServiceImpl) ReadBallanceSheet(bookId string) (model.ClosingS
 	for _, accountTable := range accountTables {
 		accountEntry := model.ClosingStatementEntry{
 			Name:    accountTable.AccountName,
-			Ammount: accountTable.AccountSum,
+			Ammount: accountTable.Saldo,
 		}
 		if accountTable.Type == "inventory" {
-			if accountTable.Type == "active" {
+			if accountTable.Category == "active" {
 				if accountTable.SubCategory == "workingCapital" {
 					workingCapitalEntries = append(workingCapitalEntries, accountEntry)
 				} else {
@@ -106,8 +106,8 @@ func (s *AccountingServiceImpl) ReadBallanceSheet(bookId string) (model.ClosingS
 			BalanceSum:     "",
 		},
 		IncomeStatement: model.IncomeStatement{
-			Creds: loss,
-			Debts: gain,
+			Creds: gain,
+			Debts: loss,
 		},
 	}, nil
 
@@ -136,8 +136,8 @@ func (s *AccountingServiceImpl) ReadAccountsFromBook(bookId string) ([]model.Acc
 			return nil, err
 		}
 		buchungenWithStartBalance := appendStartBalance(accountEntity, concatenatedBuchungDTOS)
-		buchungenWithSaldo, sum, err := appendSaldo(buchungenWithStartBalance)
-		accountDto, err := convertAccountEntityToDTO(accountEntity, buchungenWithSaldo, sum)
+		buchungenWithSaldo, sum, saldo, err := appendSaldo(buchungenWithStartBalance)
+		accountDto, err := convertAccountEntityToDTO(accountEntity, buchungenWithSaldo, sum, saldo)
 		if err != nil {
 			return nil, err
 		}
@@ -208,25 +208,27 @@ func concatenateSorted(sollBuchungen, habenBuchungen []model.TableBookingDTO) []
 	return habenAndSoll
 }
 
-func appendSaldo(buchungen []model.TableBookingDTO) ([]model.TableBookingDTO, string, error) {
+func appendSaldo(buchungen []model.TableBookingDTO) ([]model.TableBookingDTO, string, string, error) {
 	sumSoll, err := calculateSum(buchungen, "soll")
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 	sumHaben, err := calculateSum(buchungen, "haben")
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	if sumSoll > sumHaben {
-		saldierung := model.TableBookingDTO{BookingAccount: "Saldierung", Column: "haben", Ammount: bookingutils.FormatFloatToAmmount(sumSoll - sumHaben)}
-		return append(buchungen, saldierung), bookingutils.FormatFloatToAmmount(sumSoll), nil
+		saldo := bookingutils.FormatFloatToAmmount(sumSoll - sumHaben)
+		saldierung := model.TableBookingDTO{BookingAccount: "Saldierung", Column: "haben", Ammount: saldo}
+		return append(buchungen, saldierung), bookingutils.FormatFloatToAmmount(sumSoll), saldo, nil
 	}
 	if sumSoll < sumHaben {
-		saldierung := model.TableBookingDTO{BookingAccount: "Saldierung", Column: "soll", Ammount: bookingutils.FormatFloatToAmmount(sumHaben - sumSoll)}
-		return append(buchungen, saldierung), bookingutils.FormatFloatToAmmount(sumHaben), nil
+		saldo := bookingutils.FormatFloatToAmmount(sumHaben - sumSoll)
+		saldierung := model.TableBookingDTO{BookingAccount: "Saldierung", Column: "soll", Ammount: saldo}
+		return append(buchungen, saldierung), bookingutils.FormatFloatToAmmount(sumHaben), saldo, nil
 	}
-	return buchungen, bookingutils.FormatFloatToAmmount(sumHaben), nil
+	return buchungen, bookingutils.FormatFloatToAmmount(sumHaben), "", nil
 }
 
 func calculateSum(buchungen []model.TableBookingDTO, column string) (float64, error) {

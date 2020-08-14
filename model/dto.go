@@ -25,6 +25,7 @@ type AccountTableDTO struct {
 	Category    string            `json:"category"`
 	SubCategory string            `json:"subCategory"`
 	Description string            `json:"description"`
+	Saldo       string            `json:"-"`
 }
 
 type TableBookingDTO struct {
