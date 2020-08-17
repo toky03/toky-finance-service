@@ -2,6 +2,7 @@ package bookingutils
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 )
 
@@ -23,10 +24,18 @@ func StringToUint(input string) (uint, error) {
 	return uint(converted), err
 }
 
+func StrToFloat(strValue string) (float64, error) {
+	return strconv.ParseFloat(strValue, 64)
+}
+
 func UintToString(uintValue uint) string {
 	return strconv.FormatUint(uint64(uintValue), 10)
 }
 
 func FormatFloatToAmmount(value float64) string {
 	return fmt.Sprintf("%.2f", value)
+}
+
+func AlmostZero(val float64) bool {
+	return math.Abs(val) <= 0.05
 }

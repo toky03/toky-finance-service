@@ -71,7 +71,7 @@ type BalanceSheet struct {
 type IncomeStatement struct {
 	Creds      []ClosingStatementEntry `json:"creds"`
 	Debts      []ClosingStatementEntry `json:"debts"`
-	balanceSum string                  `json:"balanceSum"`
+	BalanceSum string                  `json:"balanceSum"`
 }
 
 type ClosingStatementEntry struct {

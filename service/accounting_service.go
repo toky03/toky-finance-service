@@ -2,6 +2,8 @@ package service
 
 import (
 	"errors"
+	"log"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -70,11 +72,23 @@ func (s *AccountingServiceImpl) ReadClosingStatements(bookId string) (model.Clos
 	equity := []model.ClosingStatementEntry{}
 	gain := []model.ClosingStatementEntry{}
 	loss := []model.ClosingStatementEntry{}
+	sumActive := 0.0
+	sumPassive := 0.0
+
+	sumLoss := 0.0
+	sumGain := 0.0
+
 	for _, accountTable := range accountTables {
+		floatAmmount, err := bookingutils.StrToFloat(accountTable.Saldo)
+		if err != nil {
+			log.Println(err)
+			return model.ClosingSheetStatements{}, err
+		}
 		accountEntry := model.ClosingStatementEntry{
 			Name:    accountTable.AccountName,
 			Ammount: accountTable.Saldo,
 		}
+
 		if accountTable.Type == "inventory" {
 			if accountTable.Category == "active" {
 				if accountTable.SubCategory == "workingCapital" {
@@ -82,34 +96,80 @@ func (s *AccountingServiceImpl) ReadClosingStatements(bookId string) (model.Clos
 				} else {
 					capitalAssets = append(capitalAssets, accountEntry)
 				}
+				sumActive += floatAmmount
 			} else {
 				if accountTable.SubCategory == "borrowedCapital" {
 					borrowedCapital = append(borrowedCapital, accountEntry)
 				} else {
 					equity = append(equity, accountEntry)
 				}
+				sumPassive += floatAmmount
 			}
 		} else {
 			if accountTable.Category == "gain" {
 				gain = append(gain, accountEntry)
+				sumGain += floatAmmount
 			} else {
 				loss = append(loss, accountEntry)
+				sumLoss += floatAmmount
 			}
 		}
 	}
+	diffInventory := sumActive - sumPassive
+	diffIncome := sumGain - sumLoss
+
+	balanceSheet := model.BalanceSheet{
+		WorkingCapital: workingCapitalEntries,
+		Debt:           borrowedCapital,
+		CapitalAsset:   capitalAssets,
+		Equity:         equity,
+		BalanceSum:     bookingutils.FormatFloatToAmmount(math.Max(sumActive, sumPassive)),
+	}
+
+	appendBalanceSaldo(&balanceSheet, diffInventory)
+
+	incomeStatement := model.IncomeStatement{
+		Creds:      gain,
+		Debts:      loss,
+		BalanceSum: bookingutils.FormatFloatToAmmount(math.Max(sumGain, sumLoss)),
+	}
+
+	appendIncomeSaldo(&incomeStatement, diffIncome)
+
 	return model.ClosingSheetStatements{
-		BalanceSheet: model.BalanceSheet{
-			WorkingCapital: workingCapitalEntries,
-			Debt:           borrowedCapital,
-			CapitalAsset:   capitalAssets,
-			Equity:         equity,
-			BalanceSum:     "",
-		},
-		IncomeStatement: model.IncomeStatement{
-			Creds: gain,
-			Debts: loss,
-		},
+		BalanceSheet:    balanceSheet,
+		IncomeStatement: incomeStatement,
 	}, nil
+
+}
+
+func appendBalanceSaldo(balanceSheet *model.BalanceSheet, difference float64) {
+	if bookingutils.AlmostZero(difference) {
+		balanceSheet.BalanceSum = bookingutils.FormatFloatToAmmount(difference)
+		return
+	}
+	if difference < 0 {
+		balanceSheet.WorkingCapital = append(balanceSheet.WorkingCapital,
+			model.ClosingStatementEntry{Name: "Verlust", Ammount: bookingutils.FormatFloatToAmmount(math.Abs(difference))})
+	} else {
+		balanceSheet.Equity = append(balanceSheet.Equity,
+			model.ClosingStatementEntry{Name: "Überschuss", Ammount: bookingutils.FormatFloatToAmmount(difference)})
+	}
+	return
+}
+
+func appendIncomeSaldo(incomeStatement *model.IncomeStatement, difference float64) {
+	if bookingutils.AlmostZero(difference) {
+		return
+	}
+
+	if difference < 0 {
+		incomeStatement.Creds = append(incomeStatement.Creds, model.ClosingStatementEntry{Name: "Verlust", Ammount: bookingutils.FormatFloatToAmmount(math.Abs(difference))})
+	} else {
+		incomeStatement.Debts = append(incomeStatement.Debts,
+			model.ClosingStatementEntry{Name: "Gewinn", Ammount: bookingutils.FormatFloatToAmmount(difference)})
+	}
+	return
 
 }
 
