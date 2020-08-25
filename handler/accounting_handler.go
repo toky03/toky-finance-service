@@ -10,11 +10,11 @@ import (
 )
 
 type AccountingService interface {
-	ReadAccountsFromBook(string) ([]model.AccountTableDTO, error)
-	ReadAccountOptionsFromBook(string) ([]model.AccountOptionDTO, error)
-	CreateAccount(bookID string, account model.AccountOptionDTO) error
-	CreateBooking(booking model.BookingDTO) error
-	ReadClosingStatements(bookID string) (model.ClosingSheetStatements, error)
+	ReadAccountsFromBook(string) ([]model.AccountTableDTO, model.TokyError)
+	ReadAccountOptionsFromBook(string) ([]model.AccountOptionDTO, model.TokyError)
+	CreateAccount(bookID string, account model.AccountOptionDTO) model.TokyError
+	CreateBooking(booking model.BookingDTO) model.TokyError
+	ReadClosingStatements(bookID string) (model.ClosingSheetStatements, model.TokyError)
 }
 
 // BookRealmHandler implementaion of Handler
@@ -34,30 +34,31 @@ func (h *AccountingHandlerImpl) ReadAccounts(w http.ResponseWriter, r *http.Requ
 	vars := mux.Vars(r)
 	bookID := vars["bookID"]
 	accounts, err := h.AccountingService.ReadAccountsFromBook(bookID)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
+	if model.IsExistingNotFoundError(err) {
+		handleError(err, w)
+		return
 	}
-	js, err := json.Marshal(accounts)
+	js, marshalError := json.Marshal(accounts)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, marshalError.Error(), http.StatusUnprocessableEntity)
+		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
-
 }
 
 func (h *AccountingHandlerImpl) ReadAccountOptions(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	bookID := vars["bookID"]
 	accounts, err := h.AccountingService.ReadAccountOptionsFromBook(bookID)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
+	if model.IsExisting(err) {
+		handleError(err, w)
+		return
 	}
-	js, err := json.Marshal(accounts)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	js, marshalError := json.Marshal(accounts)
+	if marshalError != nil {
+		http.Error(w, marshalError.Error(), http.StatusBadRequest)
+		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
@@ -68,17 +69,17 @@ func (h *AccountingHandlerImpl) ReadClosingStatements(w http.ResponseWriter, r *
 	vars := mux.Vars(r)
 	bookID := vars["bookID"]
 	ClosingSheetStatements, err := h.AccountingService.ReadClosingStatements(bookID)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
+	if model.IsExisting(err) {
+		handleError(err, w)
+		return
 	}
-	js, err := json.Marshal(ClosingSheetStatements)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	js, marshalError := json.Marshal(ClosingSheetStatements)
+	if marshalError != nil {
+		http.Error(w, marshalError.Error(), http.StatusBadRequest)
+		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
-
 }
 
 func (h *AccountingHandlerImpl) CreateAccount(w http.ResponseWriter, r *http.Request) {
@@ -86,14 +87,15 @@ func (h *AccountingHandlerImpl) CreateAccount(w http.ResponseWriter, r *http.Req
 	vars := mux.Vars(r)
 	bookID := vars["bookID"]
 
-	err := json.NewDecoder(r.Body).Decode(&account)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	decoderError := json.NewDecoder(r.Body).Decode(&account)
+	if decoderError != nil {
+		http.Error(w, decoderError.Error(), http.StatusBadRequest)
+		return
 	}
 
-	err = h.AccountingService.CreateAccount(bookID, account)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	accountCreationError := h.AccountingService.CreateAccount(bookID, account)
+	if model.IsExisting(accountCreationError) {
+		handleError(accountCreationError, w)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
@@ -110,9 +112,9 @@ func (h *AccountingHandlerImpl) CreateBooking(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	err = h.AccountingService.CreateBooking(booking)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	bookingCreationError := h.AccountingService.CreateBooking(booking)
+	if model.IsExisting(bookingCreationError) {
+		handleError(bookingCreationError, w)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)

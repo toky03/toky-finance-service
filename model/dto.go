@@ -78,3 +78,15 @@ type ClosingStatementEntry struct {
 	Name    string `json:"name"`
 	Ammount string `json:"ammount"`
 }
+
+func (account AccountOptionDTO) ToAccountTableDTO(bookingEntity BookRealmEntity) AccountTableEntity {
+	return AccountTableEntity{
+		BookRealmEntity: bookingEntity,
+		Category:        account.Category,
+		Description:     account.Description,
+		AccountName:     account.AccountName,
+		Type:            account.Type,
+		SubCategory:     account.SubCategory,
+		StartBalance:    account.StartBalance,
+	}
+}

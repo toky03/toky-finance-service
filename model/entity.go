@@ -1,6 +1,9 @@
 package model
 
-import "github.com/jinzhu/gorm"
+import (
+	"github.com/jinzhu/gorm"
+	"github.com/toky03/toky-finance-accounting-service/bookingutils"
+)
 
 type ApplicationUserEntity struct {
 	gorm.Model
@@ -40,4 +43,33 @@ type BookingEntity struct {
 	SollBookingAccount    AccountTableEntity `gorm:"PRELOAD"`
 	Ammount               string             `gorm:"ammount"`
 	Description           string             `gorm:"description"`
+}
+
+func (accountEntity AccountTableEntity) ToOptionDTO() AccountOptionDTO {
+	return AccountOptionDTO{
+		AccountName:  accountEntity.AccountName,
+		Id:           bookingutils.UintToString(accountEntity.Model.ID),
+		Type:         accountEntity.Type,
+		Category:     accountEntity.Category,
+		Description:  accountEntity.Description,
+		SubCategory:  accountEntity.SubCategory,
+		StartBalance: accountEntity.StartBalance,
+	}
+}
+
+func (bookingEntity BookingEntity) ToBookingDTO(column string) TableBookingDTO {
+	var bookingAccount string
+	if column == "haben" {
+		bookingAccount = bookingEntity.SollBookingAccount.AccountName
+	} else {
+		bookingAccount = bookingEntity.HabenBookingAccount.AccountName
+	}
+	return TableBookingDTO{
+		BookingID:      bookingutils.UintToString(bookingEntity.Model.ID),
+		Ammount:        bookingEntity.Ammount,
+		Date:           bookingEntity.Date,
+		Description:    bookingEntity.Description,
+		Column:         column,
+		BookingAccount: bookingAccount,
+	}
 }

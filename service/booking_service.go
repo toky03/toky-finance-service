@@ -1,7 +1,7 @@
 package service
 
 import (
-	"log"
+	"fmt"
 	"strconv"
 
 	"github.com/toky03/toky-finance-accounting-service/bookingutils"
@@ -10,10 +10,10 @@ import (
 )
 
 type BookingRepository interface {
-	FindAllBookRealms() ([]model.BookRealmEntity, error)
-	FindApplicationUsersByID([]uint) ([]model.ApplicationUserEntity, error)
-	FindApplicationUserByID(uint) (model.ApplicationUserEntity, error)
-	PersistBookRealm(model.BookRealmEntity) error
+	FindAllBookRealms() ([]model.BookRealmEntity, model.TokyError)
+	FindApplicationUsersByID([]uint) ([]model.ApplicationUserEntity, model.TokyError)
+	FindApplicationUserByID(uint) (model.ApplicationUserEntity, model.TokyError)
+	PersistBookRealm(model.BookRealmEntity) model.TokyError
 }
 type BookServiceImpl struct {
 	BookingRepository BookingRepository
@@ -25,7 +25,7 @@ func CreateBookService() *BookServiceImpl {
 	}
 }
 
-func (r *BookServiceImpl) FindAllBookRealms() (bookRealmDtos []model.BookRealmDTO, err error) {
+func (r *BookServiceImpl) FindAllBookRealms() (bookRealmDtos []model.BookRealmDTO, err model.TokyError) {
 	bookRealmEntities, err := r.BookingRepository.FindAllBookRealms()
 	bookRealmDtos = make([]model.BookRealmDTO, 0, len(bookRealmEntities))
 	for _, bookRealmEntity := range bookRealmEntities {
@@ -34,29 +34,36 @@ func (r *BookServiceImpl) FindAllBookRealms() (bookRealmDtos []model.BookRealmDT
 	return
 }
 
-func (r *BookServiceImpl) CreateBookRealm(bookRealm model.BookRealmDTO, userId string) (err error) {
-
-	writeUserIds, err := bookingutils.StringSliceToInt(bookRealm.WriteAccess)
+func (r *BookServiceImpl) CreateBookRealm(bookRealm model.BookRealmDTO, userId string) (err model.TokyError) {
+	writeUserIds, convertError := bookingutils.StringSliceToInt(bookRealm.WriteAccess)
+	if convertError != nil {
+		return model.CreateBusinessValidationError("Could not parse writeAcces Ids", convertError)
+	}
 	writeUsers, err := r.BookingRepository.FindApplicationUsersByID(writeUserIds)
-	if err != nil {
+	if model.IsExisting(err) {
 		return err
 	}
-	readUserIds, err := bookingutils.StringSliceToInt(bookRealm.ReadAccess)
+	readUserIds, convertError := bookingutils.StringSliceToInt(bookRealm.ReadAccess)
+	if convertError != nil {
+		return model.CreateBusinessValidationError("Could not parse readAccess Ids", convertError)
+	}
 	readUsers, err := r.BookingRepository.FindApplicationUsersByID(readUserIds)
-	if err != nil {
+	if model.IsExisting(err) {
 		return err
 	}
 	var ownerID int
 	if bookRealm.Owner != "" {
-		ownerID, err = strconv.Atoi(bookRealm.Owner)
+		ownerID, convertError = strconv.Atoi(bookRealm.Owner)
+		if convertError != nil {
+			return model.CreateBusinessValidationError(fmt.Sprintf("Could not convert UserId %s", bookRealm.Owner), convertError)
+		}
 	} else {
-		ownerID, err = strconv.Atoi(userId)
+		ownerID, convertError = strconv.Atoi(userId)
+		if convertError != nil {
+			return model.CreateBusinessValidationError(fmt.Sprintf("Could not convert UserId %s", userId), convertError)
+		}
 	}
 	owner, err := r.BookingRepository.FindApplicationUserByID(uint(ownerID))
-	if err != nil {
-		log.Printf("could not find User %v", err)
-		return err
-	}
 
 	bookRealmEntity := model.BookRealmEntity{
 		BookName:    bookRealm.BookName,
