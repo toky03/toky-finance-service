@@ -3,6 +3,8 @@ version: '3'
 volumes:
     postgres_data:
         driver: local
+    theme:
+        driver: local
             
 services:
     postgres:
@@ -15,7 +17,7 @@ services:
             POSTGRES_PASSWORD: kc_password
 
     keycloak-service:
-        image: quay.io/keycloak/keycloak
+        image: toky03/keycloak
         environment: 
             - KEYCLOAK_USER=admin
             - KEYCLOAK_PASSWORD=admin
@@ -28,5 +30,7 @@ services:
             - PROXY_ADDRESS_FORWARDING=true
         ports: 
             - 8080:8080
+        volumes: 
+            - ./custom-theme:/opt/jboss/keycloak/themes/toky-keycloak-theme
         depends_on: 
             - postgres
