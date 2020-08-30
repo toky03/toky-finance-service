@@ -5,34 +5,53 @@ import (
 	"github.com/toky03/toky-finance-accounting-service/model"
 )
 
-func validateAccount(account model.AccountOptionDTO) error {
+var validationError = "VALIDATION_ERROR"
+
+func validateAccount(account model.AccountOptionDTO) (valid bool, err model.BusinessError) {
 	if account.Type == "inventory" {
 		if account.Category == "active" {
 			if account.SubCategory != "workingCapital" && account.SubCategory != "capitalAsset" {
-				return errors.New("Subcategory for category 'active' must be 'capitalAsset' or 'workingCapital'")
+				err = createValidationError("Subcategory for category 'active' must be 'capitalAsset' or 'workingCapital'")
+				return false, err
 			}
 		} else if account.Category == "passive" {
 			if account.SubCategory != "borrowedCapital" && account.SubCategory != "equity" {
-				return errors.New("Subcategory for category 'passive' must be 'borrowedCapital' or 'equity'")
+				err = createValidationError("Subcategory for category 'passive' must be 'borrowedCapital' or 'equity'")
+				return false, err
 			}
 
 		} else {
-			return errors.New("Category for Type Inventory must be 'active' or 'passive'.")
+			err = createValidationError("Category for Type Inventory must be 'active' or 'passive'.")
+			return false, err
 		}
 
 	} else {
 		if account.Type != "income" {
-			return errors.New("Type must be 'inventory' or 'income'")
+			err = createValidationError("Type must be 'inventory' or 'income'")
+			return false, err
 		}
 		if account.Category != "gain" && account.Category != "loss" {
-			return errors.New("Category for 'income' must be 'gain' or 'loss'")
+			err = createValidationError("Category for 'income' must be 'gain' or 'loss'")
+			return false, err
 		}
 		if account.SubCategory != "" {
-			return errors.New("Subcategory is not supported for type 'income'")
+			err = createValidationError("Subcategory is not supported for type 'income'")
+			return false, err
 		}
 		if account.StartBalance != "" {
-			return errors.New("StartBalance is not supported for type 'income'")
+			err = createValidationError("StartBalance is not supported for type 'income'")
+			return false, err
 		}
 	}
-	return nil
+	return true, err
+}
+
+func validateBooking(booking model.BookingDTO) model.BusinessError {
+	if booking.Ammount == "" {
+		return createValidationError("booking Ammount must be a valid number")
+	}
+	return model.BusinessError{}
+}
+func createValidationError(cause string) model.BusinessError {
+	return model.CreateBusinessValidationError(cause, errors.New(validationError))
 }

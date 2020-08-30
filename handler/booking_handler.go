@@ -12,13 +12,13 @@ import (
 
 // BookRealmService interface to define Contract
 type BookRealmService interface {
-	FindAllBookRealms() ([]model.BookRealmDTO, error)
-	CreateBookRealm(model.BookRealmDTO, string) error
+	FindAllBookRealms() ([]model.BookRealmDTO, model.TokyError)
+	CreateBookRealm(model.BookRealmDTO, string) model.TokyError
 }
 
 type UserService interface {
-	CreateUser(model.ApplicationUserDTO) error
-	ReadAllUsers(limit, searchTerm string) ([]model.ApplicationUserDTO, error)
+	CreateUser(model.ApplicationUserDTO) model.TokyError
+	ReadAllUsers(limit, searchTerm string) ([]model.ApplicationUserDTO, model.TokyError)
 }
 
 // BookRealmHandler implementaion of Handler
@@ -36,14 +36,13 @@ func CreateBookRealmHandler() *BookRealmHandler {
 
 func (h *BookRealmHandler) ReadBookRealms(w http.ResponseWriter, r *http.Request) {
 	bookRealms, err := h.BookRealmService.FindAllBookRealms()
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
+	if model.IsExisting(err) {
+		handleError(err, w)
 		return
 	}
-	js, err := json.Marshal(bookRealms)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	js, marshalErr := json.Marshal(bookRealms)
+	if marshalErr != nil {
+		http.Error(w, marshalErr.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -54,16 +53,16 @@ func (h *BookRealmHandler) ReadBookRealms(w http.ResponseWriter, r *http.Request
 func (h *BookRealmHandler) CreateBookRealm(w http.ResponseWriter, r *http.Request) {
 	var bookRealm model.BookRealmDTO
 
-	err := json.NewDecoder(r.Body).Decode(&bookRealm)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	decoderError := json.NewDecoder(r.Body).Decode(&bookRealm)
+	if decoderError != nil {
+		http.Error(w, decoderError.Error(), http.StatusUnprocessableEntity)
 		return
 	}
 	userName := context.Get(r, "user-id")
 
-	err = h.BookRealmService.CreateBookRealm(bookRealm, fmt.Sprint(userName))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	createRealmErr := h.BookRealmService.CreateBookRealm(bookRealm, fmt.Sprint(userName))
+	if model.IsExisting(createRealmErr) {
+		handleError(createRealmErr, w)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
@@ -78,14 +77,12 @@ func (h *BookRealmHandler) ReadAccountingUsers(w http.ResponseWriter, r *http.Re
 	limit := queries.Get("limit")
 	searchTerm := queries.Get("searchTerm")
 	applicationUsers, err := h.UserService.ReadAllUsers(limit, searchTerm)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
-		return
+	if model.IsExisting(err) {
+		handleError(err, w)
 	}
-	js, err := json.Marshal(applicationUsers)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	js, marshalError := json.Marshal(applicationUsers)
+	if marshalError != nil {
+		http.Error(w, marshalError.Error(), http.StatusBadRequest)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -96,15 +93,15 @@ func (h *BookRealmHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	var applicationUser model.ApplicationUserDTO
 
-	err := json.NewDecoder(r.Body).Decode(&applicationUser)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	decoderError := json.NewDecoder(r.Body).Decode(&applicationUser)
+	if decoderError != nil {
+		http.Error(w, decoderError.Error(), http.StatusUnprocessableEntity)
 		return
 	}
 
-	err = h.UserService.CreateUser(applicationUser)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	createUserError := h.UserService.CreateUser(applicationUser)
+	if model.IsExisting(createUserError) {
+		handleError(createUserError, w)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)

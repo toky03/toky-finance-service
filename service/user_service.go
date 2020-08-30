@@ -10,8 +10,8 @@ import (
 )
 
 type UserRepository interface {
-	PersistApplicationUser(model.ApplicationUserEntity) error
-	FindAllApplicationUsers(limit int, searchTerm string) ([]model.ApplicationUserEntity, error)
+	PersistApplicationUser(model.ApplicationUserEntity) model.TokyError
+	FindAllApplicationUsers(limit int, searchTerm string) ([]model.ApplicationUserEntity, model.TokyError)
 }
 
 type ApplicationUserServiceImpl struct {
@@ -24,7 +24,7 @@ func CreateApplicationUserService() *ApplicationUserServiceImpl {
 	}
 }
 
-func (s *ApplicationUserServiceImpl) CreateUser(applicationUser model.ApplicationUserDTO) error {
+func (s *ApplicationUserServiceImpl) CreateUser(applicationUser model.ApplicationUserDTO) model.TokyError {
 	applicationUserEntity := model.ApplicationUserEntity{UserName: applicationUser.UserName,
 		FirstName: applicationUser.FirstName,
 		LastName:  applicationUser.LastName,
@@ -33,15 +33,15 @@ func (s *ApplicationUserServiceImpl) CreateUser(applicationUser model.Applicatio
 	return s.userRepository.PersistApplicationUser(applicationUserEntity)
 }
 
-func (s *ApplicationUserServiceImpl) ReadAllUsers(limit, searchTerm string) ([]model.ApplicationUserDTO, error) {
+func (s *ApplicationUserServiceImpl) ReadAllUsers(limit, searchTerm string) ([]model.ApplicationUserDTO, model.TokyError) {
 	limitUint, err := strconv.Atoi(limit)
 	if err != nil {
 		limitUint = 20
 	}
 	trimmedSearch := strings.TrimSpace(searchTerm)
-	applicationUsersEntity, err := s.userRepository.FindAllApplicationUsers(limitUint, trimmedSearch)
+	applicationUsersEntity, repoError := s.userRepository.FindAllApplicationUsers(limitUint, trimmedSearch)
 	if err != nil {
-		return []model.ApplicationUserDTO{}, err
+		return []model.ApplicationUserDTO{}, repoError
 	}
 	var applicationUsersDto = make([]model.ApplicationUserDTO, 0, len(applicationUsersEntity))
 	for _, applicationUserEntity := range applicationUsersEntity {
