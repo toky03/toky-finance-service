@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/toky03/toky-finance-accounting-service/model"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 type RepositoryImpl struct {
@@ -34,15 +34,14 @@ func CreateRepository() *RepositoryImpl {
 
 	dbURI := fmt.Sprintf("host=%s user=%s dbname=%s sslmode=disable password=%s", dbHost, username, dbName, password)
 
-	conn, err := gorm.Open("postgres", dbURI)
+	conn, err := gorm.Open(postgres.Open(dbURI), &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}
 
-	if err := conn.AutoMigrate(&model.ApplicationUserEntity{}, &model.BookRealmEntity{}, &model.AccountTableEntity{}, &model.BookingEntity{}).Error; err != nil {
+	if err := conn.AutoMigrate(&model.ApplicationUserEntity{}, &model.BookRealmEntity{}, &model.AccountTableEntity{}, &model.BookingEntity{}); err != nil {
 		log.Printf("Error with Automigrate: %v", err)
 	}
-
 	return &RepositoryImpl{
 		connection: conn,
 	}
@@ -50,11 +49,11 @@ func CreateRepository() *RepositoryImpl {
 
 // FindAllBookRealms returns all Bookrealms
 func (r *RepositoryImpl) FindAllBookRealms() (bookRealms []model.BookRealmEntity, err model.TokyError) {
-	findError := r.connection.Preload("Owner").Preload("WriteAccess").Preload("ReadAccess").Find(&bookRealms).Error
+	findError := r.connection.Preload("Owner").Preload("WriteAccess.ApplicationUserEntity").Preload("ReadAccess.ApplicationUserEntity").Find(&bookRealms).Error
 	if findError == nil {
 		return
 	}
-	if gorm.IsRecordNotFoundError(findError) {
+	if gorm.ErrRecordNotFound == findError {
 		err = model.CreateBusinessErrorNotFound("No Book Realm found", findError)
 	} else {
 		err = model.CreateTechnicalError("Unknown Error", findError)
@@ -67,7 +66,7 @@ func (r *RepositoryImpl) FindBookRealmByID(bookingID uint) (bookRealm model.Book
 	if findError == nil {
 		return
 	}
-	if gorm.IsRecordNotFoundError(findError) {
+	if gorm.ErrRecordNotFound == findError {
 		err = model.CreateBusinessErrorNotFound(fmt.Sprintf("No Book Realm with Id %v found", bookingID), findError)
 	} else {
 		err = model.CreateTechnicalError("Unknown Error", findError)
@@ -75,13 +74,13 @@ func (r *RepositoryImpl) FindBookRealmByID(bookingID uint) (bookRealm model.Book
 	return
 }
 
-// FindAllApplicationUsers returns all ApplicationUsers
-func (r *RepositoryImpl) FindAllApplicationUsers(limit int, searchTerm string) (applicationUsers []model.ApplicationUserEntity, err model.TokyError) {
+// FindAllApplicationUsersBySearchTerm returns all ApplicationUsers
+func (r *RepositoryImpl) FindAllApplicationUsersBySearchTerm(limit int, searchTerm string) (applicationUsers []model.ApplicationUserEntity, err model.TokyError) {
 	findError := r.connection.Limit(limit).Where("user_name LIKE ?", "%"+searchTerm+"%").Find(&applicationUsers).Error
 	if findError == nil {
 		return
 	}
-	if gorm.IsRecordNotFoundError(findError) {
+	if gorm.ErrRecordNotFound == findError {
 		err = model.CreateBusinessErrorNotFound(fmt.Sprintf("No Users with searchTerm %s found", searchTerm), findError)
 	} else {
 		err = model.CreateTechnicalError("Unknown Error", findError)
@@ -89,13 +88,27 @@ func (r *RepositoryImpl) FindAllApplicationUsers(limit int, searchTerm string) (
 	return
 }
 
-// FindApplicationUsersByID search multiple application users
-func (r *RepositoryImpl) FindApplicationUsersByID(applicationUserIDs []uint) (applicationUsers []model.ApplicationUserEntity, err model.TokyError) {
-	findError := r.connection.Where(applicationUserIDs).Find(&applicationUsers).Error
+// FindAllApplicationUsersBySearchTerm returns all ApplicationUsers
+func (r *RepositoryImpl) FindAllApplicationUsers() (applicationUsers []model.ApplicationUserEntity, err model.TokyError) {
+	findError := r.connection.Find(&applicationUsers).Error
 	if findError == nil {
 		return
 	}
-	if gorm.IsRecordNotFoundError(findError) {
+	if gorm.ErrRecordNotFound == findError {
+		err = model.CreateBusinessErrorNotFound("No Users found", findError)
+	} else {
+		err = model.CreateTechnicalError("Unknown Error", findError)
+	}
+	return
+}
+
+// FindApplicationUsersByID search multiple application users
+func (r *RepositoryImpl) FindApplicationUsersByID(applicationUserIDs []string) (applicationUsers []model.ApplicationUserEntity, err model.TokyError) {
+	findError := r.connection.Where("id in (?)", applicationUserIDs).Find(&applicationUsers).Error
+	if findError == nil {
+		return
+	}
+	if gorm.ErrRecordNotFound == findError {
 		err = model.CreateBusinessErrorNotFound(fmt.Sprintf("No Users found with Id %v", applicationUserIDs), findError)
 	} else {
 		err = model.CreateTechnicalError("Unknown Error", findError)
@@ -104,13 +117,25 @@ func (r *RepositoryImpl) FindApplicationUsersByID(applicationUserIDs []uint) (ap
 }
 
 // FindApplicationUserByID search for a single application user
-func (r *RepositoryImpl) FindApplicationUserByID(applicationUserID uint) (applicationUser model.ApplicationUserEntity, err model.TokyError) {
-	findError := r.connection.Where(applicationUserID).First(&applicationUser).Error
+func (r *RepositoryImpl) FindApplicationUserByID(applicationUserID string) (applicationUser model.ApplicationUserEntity, err model.TokyError) {
+	findError := r.connection.Where("id = ?", applicationUserID).First(&applicationUser).Error
 	if findError == nil {
 		return
 	}
-	if gorm.IsRecordNotFoundError(findError) {
+	if gorm.ErrRecordNotFound == findError {
 		err = model.CreateBusinessErrorNotFound(fmt.Sprintf("No User found with Id %v", applicationUserID), findError)
+	} else {
+		err = model.CreateTechnicalError("Unknown Error", findError)
+	}
+	return
+}
+func (r *RepositoryImpl) FindAllApplicationUsersByUserName(userName string) (applicationUser model.ApplicationUserEntity, err model.TokyError) {
+	findError := r.connection.Where("user_name = ?", userName).First(&applicationUser).Error
+	if findError == nil {
+		return
+	}
+	if gorm.ErrRecordNotFound == findError {
+		err = model.CreateBusinessErrorNotFound(fmt.Sprintf("No User found with username %v", userName), findError)
 	} else {
 		err = model.CreateTechnicalError("Unknown Error", findError)
 	}
@@ -135,12 +160,36 @@ func (r *RepositoryImpl) PersistApplicationUser(applicationUser model.Applicatio
 	return nil
 }
 
+// UpdateApplicationUser creates new instance of a ApplicationUser
+func (r *RepositoryImpl) UpdateApplicationUser(applicationUser model.ApplicationUserEntity) model.TokyError {
+	saveError := r.connection.Save(&applicationUser).Error
+	if saveError != nil {
+		return model.CreateBusinessError("Could not Update ApplicationUser", saveError)
+	}
+	return nil
+}
+
+func (r *RepositoryImpl) DeleteUser(userId string) model.TokyError {
+	deleteErr := r.connection.Where("id = ?", userId).Delete(&model.ApplicationUserEntity{}).Error
+	if deleteErr != nil {
+		return model.CreateTechnicalError(fmt.Sprintf("Could not Delete User with Id %v", userId), deleteErr)
+	}
+	return nil
+}
+func (r *RepositoryImpl) DeleteRealmsFromUser(userId string) model.TokyError {
+	deleteErr := r.connection.Where("owner_id = ?", userId).Delete(&model.BookRealmEntity{}).Error
+	if deleteErr != nil {
+		return model.CreateTechnicalError(fmt.Sprintf("Could not Delete BookRealms from user with Id %v", userId), deleteErr)
+	}
+	return nil
+}
+
 func (r *RepositoryImpl) FindAccountsByBookId(bookId uint) (accountTableEntities []model.AccountTableEntity, err model.TokyError) {
 	findError := r.connection.Where("book_realm_entity_id = ?", bookId).Order("account_name").Find(&accountTableEntities).Error
 	if findError == nil {
 		return
 	}
-	if gorm.IsRecordNotFoundError(findError) {
+	if gorm.ErrRecordNotFound == findError {
 		err = model.CreateBusinessErrorNotFound(fmt.Sprintf("No Accounts for BookId %d found", bookId), findError)
 	} else {
 		err = model.CreateTechnicalError("Unknown Error", findError)
@@ -153,7 +202,7 @@ func (r *RepositoryImpl) FindRelatedHabenBuchungen(accountTable model.AccountTab
 	if findError == nil {
 		return
 	}
-	if gorm.IsRecordNotFoundError(findError) {
+	if gorm.ErrRecordNotFound == findError {
 		err = model.CreateBusinessErrorNotFound(fmt.Sprintf("No SollBuchungen for AccountTable with Id %v found", accountTable.Model.ID), findError)
 	} else {
 		err = model.CreateTechnicalError("Unknown Error", findError)
@@ -165,7 +214,7 @@ func (r *RepositoryImpl) FindRelatedSollBuchungen(accountTable model.AccountTabl
 	if findError == nil {
 		return
 	}
-	if gorm.IsRecordNotFoundError(findError) {
+	if gorm.ErrRecordNotFound == findError {
 		err = model.CreateBusinessErrorNotFound(fmt.Sprintf("No HabenBuchungen for AccountTable with Id %v found", accountTable.Model.ID), findError)
 	} else {
 		err = model.CreateTechnicalError("Unknown Error", findError)
@@ -186,7 +235,7 @@ func (r *RepositoryImpl) FindAccountByID(id uint) (accountTable model.AccountTab
 	if findError == nil {
 		return
 	}
-	if gorm.IsRecordNotFoundError(findError) {
+	if gorm.ErrRecordNotFound == findError {
 		err = model.CreateBusinessErrorNotFound(fmt.Sprintf("No Account with Id %v found", id), findError)
 	} else {
 		err = model.CreateTechnicalError("Unknown Error", findError)

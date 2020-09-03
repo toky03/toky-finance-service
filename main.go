@@ -31,14 +31,25 @@ type MonitoringHandler interface {
 	MeasureRequest(http.Handler) http.Handler
 }
 
+type AuthenticationHandler interface {
+	AuthenticationMiddleware(http.Handler) http.Handler
+}
+
 func main() {
 	var bookHandler BookHandler
 	var monitoringHandler MonitoringHandler
 	var accountingHandler AccountingHandler
+	var authenticationHandler AuthenticationHandler
 
 	bookHandler = handler.CreateBookRealmHandler()
 	monitoringHandler = handler.CreateMonitoringHandler()
 	accountingHandler = handler.CreateAccountingHandler()
+	authenticationHandler = handler.CreateAuthenticationHandler()
+
+	err := handler.CreateAndRegisterUserBatchService()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	r := mux.NewRouter()
 	r.Handle("/metrics", monitoringHandler.MetricsHandler())
@@ -53,7 +64,7 @@ func main() {
 	r.HandleFunc("/api/user", bookHandler.CreateUser).Methods("POST")
 	r.HandleFunc("/api/user", bookHandler.ReadAccountingUsers).Methods("GET")
 	r.Use(monitoringHandler.MeasureRequest)
-	r.Use(handler.AuthenticationMiddleware)
-	log.Fatal(http.ListenAndServe(":3000", r))
+	r.Use(authenticationHandler.AuthenticationMiddleware)
+	log.Fatal(http.ListenAndServe(":3001", r))
 
 }

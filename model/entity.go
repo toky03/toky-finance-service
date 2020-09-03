@@ -6,7 +6,7 @@ import (
 )
 
 type ApplicationUserEntity struct {
-	gorm.Model
+	ID        string `gorm:"id;uniqueIndex:idx_user_id"`
 	UserName  string `gorm:"user_name;index:idx_username;not null"`
 	FirstName string `gorm:"first_name"`
 	LastName  string `gorm:"last_name"`
@@ -16,10 +16,24 @@ type ApplicationUserEntity struct {
 type BookRealmEntity struct {
 	gorm.Model
 	BookName    string `gorm:"book_name"`
-	OwnerID     uint
-	Owner       ApplicationUserEntity   `gorm:"PRELOAD:true"`
-	WriteAccess []ApplicationUserEntity `gorm:"many2many:map_user_write_book_realm;PRELOAD:true"`
-	ReadAccess  []ApplicationUserEntity `gorm:"many2many:map_user_read_book_realm;PRELOAD:true"`
+	OwnerID     string
+	Owner       ApplicationUserEntity          `gorm:"PRELOAD:true"`
+	WriteAccess []*WriteApplicationUserWrapper `gorm:"many2many:map_write_access;PRELOAD:true;"`
+	ReadAccess  []*ReadApplicationUserWrapper  `gorm:"many2many:map_read_access;PRELOAD:true;"`
+}
+
+type WriteApplicationUserWrapper struct {
+	gorm.Model
+	ApplicationUserEntityID string
+	ApplicationUserEntity   ApplicationUserEntity `gorm:"PRELOAD:true"`
+	WriteAccessBookRealms   []*BookRealmEntity    `gorm:"many2many:map_write_access;"`
+}
+
+type ReadApplicationUserWrapper struct {
+	gorm.Model
+	ApplicationUserEntityID string
+	ApplicationUserEntity   ApplicationUserEntity `gorm:"PRELOAD:true"`
+	ReadAccessBookRealms    []*BookRealmEntity    `gorm:"many2many:map_read_access;"`
 }
 
 type AccountTableEntity struct {

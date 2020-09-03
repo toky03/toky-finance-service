@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+
+package grpc_users;
+
+message User {
+  string id = 1;
+  string username = 2;
+  string firstname = 3;
+  string lastname = 4;
+  string email = 5;
+
+}
+
+message Empty {
+
+}
+
+message UserId {
+    string id = 1;
+}
+
+
+message GetUsersResponse {
+  repeated User users = 1; 
+}
+
+service UserService {
+  rpc GetAllUsers(Empty) returns (GetUsersResponse) {}
+  rpc UpdateUser(User) returns (Empty) {}
+  rpc AddUser(User) returns (Empty) {}
+  rpc DeleteUser(UserId) returns (Empty) {}
+}
+

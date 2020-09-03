@@ -20,7 +20,7 @@ type AccountingService interface {
 // BookRealmHandler implementaion of Handler
 type AccountingHandlerImpl struct {
 	AccountingService AccountingService
-	UserService       UserService
+	UserService       userService
 }
 
 func CreateAccountingHandler() *AccountingHandlerImpl {

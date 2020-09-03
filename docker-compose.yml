@@ -3,22 +3,34 @@ version: '3'
 services:
     toky-finance-service:
         build: .
-        depends_on:
-            - finance-db
         ports:
-            - "3000:3000"
+            - "3001:3001"
+            - "3003:3003"
         environment: 
             - DB_NAME=tokyfinance
             - DB_PASS=pwd
             - DB_USER=tokyuser
             - DB_TYPE=postgres
-            - DB_HOST=finance-db
+            - DB_HOST=localhost
             - DB_PORT=5432
-    finance-db:
-        image: postgres:9.6
-#        ports:
-        #- "5454:5432"
-        environment: 
-            - POSTGRES_DB=tokyfinance
-            - POSTGRES_PASSWORD=pwd
-            - POSTGRES_USER=tokyuser
+            - USER_BATCH_PORT=3003
+            - OPENID_JWKS_URL=http://localhost:8080/auth/realms/toky-finance/protocol/openid-connect/certs
+        network_mode: "host"
+    user-batch:
+        image: toky03/user-batch
+        environment:
+            - INTERVAL_SECONDS=10
+            - ID_PROVIDER_ENDPOINT=http://localhost:8080/auth/admin/realms/toky-finance/users
+            - ID_PROVIDER_ACCESS_TOKEN=eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJvUXFmUEwxU2s5STFuNGdScWVLaHNWa1VZNklDRGRvejN2OWdUOExBcGFzIn0.eyJleHAiOjE1OTkxNzM1NTMsImlhdCI6MTU5OTEzNzU1MywianRpIjoiNjU0NWI0Y2UtMzIxMi00M2FmLWJkNDEtYTliMmFlNTE5MGE3IiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwL2F1dGgvcmVhbG1zL3Rva3ktZmluYW5jZSIsImF1ZCI6WyJyZWFsbS1tYW5hZ2VtZW50IiwiYWNjb3VudCJdLCJzdWIiOiJjNTljOGE3ZC0yMGZjLTRhY2YtOTNlNi05ODg3MTdlNmY1MmYiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJ0b2t5LWZpbmFuY2Utc2VydmljZSIsInNlc3Npb25fc3RhdGUiOiI5ZWY1ZjcxMy0xZDJmLTQ2MzItOGVkNC1hODZlYjliZWZkNGMiLCJhY3IiOiIxIiwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbIm9mZmxpbmVfYWNjZXNzIiwidmlldy11c2VycyIsInVtYV9hdXRob3JpemF0aW9uIiwicXVlcnktdXNlcnMiXX0sInJlc291cmNlX2FjY2VzcyI6eyJyZWFsbS1tYW5hZ2VtZW50Ijp7InJvbGVzIjpbInZpZXctaWRlbnRpdHktcHJvdmlkZXJzIiwidmlldy1yZWFsbSIsIm1hbmFnZS1pZGVudGl0eS1wcm92aWRlcnMiLCJpbXBlcnNvbmF0aW9uIiwicmVhbG0tYWRtaW4iLCJjcmVhdGUtY2xpZW50IiwibWFuYWdlLXVzZXJzIiwicXVlcnktcmVhbG1zIiwidmlldy1hdXRob3JpemF0aW9uIiwicXVlcnktY2xpZW50cyIsInF1ZXJ5LXVzZXJzIiwibWFuYWdlLWV2ZW50cyIsIm1hbmFnZS1yZWFsbSIsInZpZXctZXZlbnRzIiwidmlldy11c2VycyIsInZpZXctY2xpZW50cyIsIm1hbmFnZS1hdXRob3JpemF0aW9uIiwibWFuYWdlLWNsaWVudHMiLCJxdWVyeS1ncm91cHMiXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfSwidG9reS1maW5hbmNlLXNlcnZpY2UiOnsicm9sZXMiOlsidmlldy11c2VycyJdfX0sInNjb3BlIjoib3BlbmlkIGVtYWlsIHByb2ZpbGUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwibmFtZSI6IkZpbmFuY2UgU2VydmljZSBBUEkgVXNlciIsInByZWZlcnJlZF91c2VybmFtZSI6ImZpbmFuY2Utc2VydmljZSIsImdpdmVuX25hbWUiOiJGaW5hbmNlIFNlcnZpY2UgQVBJIFVzZXIifQ.HQba7v_L6TPDcjnHWu9AU5le5RsnB6teXU_bVSEOJGdA84GuGSQfipRXABuFDdG09JZH4EzycR48YFEC4KQycOH30qbwjtdboKCviz9oYuGbCEWxIRFcb0n9KGA0l6fFTwUzPqPIwMT070O2rLyfTucrBi_ibfP_W8QrhMBA4bg4gtT9rhD9nf39oW5WoLTiJyqdR8s1Xe6Yqc8PKsZcilPAtQlAqGLbwBooZAZ4rP-wmVmVxcogQNgcdJsPM-jJwzoa0kEFfqE6pONEafi9fKSIQLH3eKkax4MMLoXEE0E4k3TO-rqvM52AR7zkzd1mDyKfonXrm7bWTt34ShBUjA
+            - ACCOUNTING_SERVER_ENDPOINT=localhost:3003
+        depends_on:
+            - toky-finance-service
+        network_mode: "host"
+#     finance-db:
+#         image: postgres:9.6
+# #        ports:
+#         #- "5454:5432"
+#         environment: 
+#             - POSTGRES_DB=tokyfinance
+#             - POSTGRES_PASSWORD=pwd
+#             - POSTGRES_USER=tokyuser

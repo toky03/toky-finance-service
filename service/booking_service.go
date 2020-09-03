@@ -1,18 +1,16 @@
 package service
 
 import (
-	"fmt"
 	"strconv"
 
-	"github.com/toky03/toky-finance-accounting-service/bookingutils"
 	"github.com/toky03/toky-finance-accounting-service/model"
 	"github.com/toky03/toky-finance-accounting-service/repository"
 )
 
 type BookingRepository interface {
 	FindAllBookRealms() ([]model.BookRealmEntity, model.TokyError)
-	FindApplicationUsersByID([]uint) ([]model.ApplicationUserEntity, model.TokyError)
-	FindApplicationUserByID(uint) (model.ApplicationUserEntity, model.TokyError)
+	FindApplicationUsersByID([]string) ([]model.ApplicationUserEntity, model.TokyError)
+	FindApplicationUserByID(string) (model.ApplicationUserEntity, model.TokyError)
 	PersistBookRealm(model.BookRealmEntity) model.TokyError
 }
 type BookServiceImpl struct {
@@ -35,36 +33,29 @@ func (r *BookServiceImpl) FindAllBookRealms() (bookRealmDtos []model.BookRealmDT
 }
 
 func (r *BookServiceImpl) CreateBookRealm(bookRealm model.BookRealmDTO, userId string) (err model.TokyError) {
-	writeUserIds, convertError := bookingutils.StringSliceToInt(bookRealm.WriteAccess)
-	if convertError != nil {
-		return model.CreateBusinessValidationError("Could not parse writeAcces Ids", convertError)
-	}
-	writeUsers, err := r.BookingRepository.FindApplicationUsersByID(writeUserIds)
-	if model.IsExisting(err) {
-		return err
-	}
-	readUserIds, convertError := bookingutils.StringSliceToInt(bookRealm.ReadAccess)
-	if convertError != nil {
-		return model.CreateBusinessValidationError("Could not parse readAccess Ids", convertError)
-	}
-	readUsers, err := r.BookingRepository.FindApplicationUsersByID(readUserIds)
-	if model.IsExisting(err) {
-		return err
-	}
-	var ownerID int
-	if bookRealm.Owner != "" {
-		ownerID, convertError = strconv.Atoi(bookRealm.Owner)
-		if convertError != nil {
-			return model.CreateBusinessValidationError(fmt.Sprintf("Could not convert UserId %s", bookRealm.Owner), convertError)
+	var writeUsers []*model.WriteApplicationUserWrapper
+	var readUsers []*model.ReadApplicationUserWrapper
+	if len(bookRealm.WriteAccess) > 0 {
+		writeUsersRaw, err := r.BookingRepository.FindApplicationUsersByID(bookRealm.WriteAccess)
+		if model.IsExisting(err) {
+			return err
 		}
+		writeUsers = toSlicePointersWrite(writeUsersRaw)
+	}
+	if len(bookRealm.ReadAccess) > 0 {
+		readUsersRaw, err := r.BookingRepository.FindApplicationUsersByID(bookRealm.ReadAccess)
+		if model.IsExisting(err) {
+			return err
+		}
+		readUsers = toSlicePointersRead(readUsersRaw)
+	}
+	var ownerId string
+	if bookRealm.Owner == "" {
+		ownerId = userId
 	} else {
-		ownerID, convertError = strconv.Atoi(userId)
-		if convertError != nil {
-			return model.CreateBusinessValidationError(fmt.Sprintf("Could not convert UserId %s", userId), convertError)
-		}
+		ownerId = bookRealm.Owner
 	}
-	owner, err := r.BookingRepository.FindApplicationUserByID(uint(ownerID))
-
+	owner, err := r.BookingRepository.FindApplicationUserByID(ownerId)
 	bookRealmEntity := model.BookRealmEntity{
 		BookName:    bookRealm.BookName,
 		Owner:       owner,
@@ -76,16 +67,31 @@ func (r *BookServiceImpl) CreateBookRealm(bookRealm model.BookRealmDTO, userId s
 
 }
 
+func toSlicePointersWrite(applicationUsers []model.ApplicationUserEntity) (pointerUsers []*model.WriteApplicationUserWrapper) {
+	for _, writeUser := range applicationUsers {
+		pointerUsers = append(pointerUsers, &model.WriteApplicationUserWrapper{
+			ApplicationUserEntity: writeUser})
+	}
+	return
+}
+func toSlicePointersRead(applicationUsers []model.ApplicationUserEntity) (pointerUsers []*model.ReadApplicationUserWrapper) {
+	for _, readUser := range applicationUsers {
+		pointerUsers = append(pointerUsers, &model.ReadApplicationUserWrapper{
+			ApplicationUserEntity: readUser})
+	}
+	return
+}
+
 func convertBookRealmEntityToDto(bookRealm model.BookRealmEntity) (bookRealmDTO model.BookRealmDTO) {
 	writeAccessUsers := make([]string, 0, len(bookRealm.WriteAccess))
 	for _, writeAccessUser := range bookRealm.WriteAccess {
-		writeAccessUsers = append(writeAccessUsers, writeAccessUser.UserName)
+		writeAccessUsers = append(writeAccessUsers, writeAccessUser.ApplicationUserEntity.UserName)
 	}
 
 	readAccessUsers := make([]string, 0, len(bookRealm.ReadAccess))
 
 	for _, readAccessUser := range bookRealm.ReadAccess {
-		readAccessUsers = append(readAccessUsers, readAccessUser.UserName)
+		readAccessUsers = append(readAccessUsers, readAccessUser.ApplicationUserEntity.UserName)
 	}
 
 	bookRealmDTO = model.BookRealmDTO{

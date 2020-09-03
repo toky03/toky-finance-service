@@ -11,20 +11,21 @@ import (
 )
 
 // BookRealmService interface to define Contract
-type BookRealmService interface {
+type bookRealmService interface {
 	FindAllBookRealms() ([]model.BookRealmDTO, model.TokyError)
 	CreateBookRealm(model.BookRealmDTO, string) model.TokyError
 }
 
-type UserService interface {
+type userService interface {
 	CreateUser(model.ApplicationUserDTO) model.TokyError
-	ReadAllUsers(limit, searchTerm string) ([]model.ApplicationUserDTO, model.TokyError)
+	SearchUsers(limit, searchTerm string) ([]model.ApplicationUserDTO, model.TokyError)
+	FindUserByUsername(userName string) (model.ApplicationUserDTO, model.TokyError)
 }
 
 // BookRealmHandler implementaion of Handler
 type BookRealmHandler struct {
-	BookRealmService BookRealmService
-	UserService      UserService
+	BookRealmService bookRealmService
+	UserService      userService
 }
 
 func CreateBookRealmHandler() *BookRealmHandler {
@@ -76,7 +77,7 @@ func (h *BookRealmHandler) ReadAccountingUsers(w http.ResponseWriter, r *http.Re
 	queries := r.URL.Query()
 	limit := queries.Get("limit")
 	searchTerm := queries.Get("searchTerm")
-	applicationUsers, err := h.UserService.ReadAllUsers(limit, searchTerm)
+	applicationUsers, err := h.UserService.SearchUsers(limit, searchTerm)
 	if model.IsExisting(err) {
 		handleError(err, w)
 	}
