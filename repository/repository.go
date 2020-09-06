@@ -56,6 +56,7 @@ func (r *RepositoryImpl) FindAllBookRealmsCorrespondingToUser(userId string) (bo
 		Joins("LEFT JOIN map_write_accesses mwa on book_realm_entities.id = mwa.book_realm_entity_id").
 		Joins("LEFT JOIN write_application_user_wrappers aww ON aww.id = mwa.write_application_user_wrapper_id").
 		Where("owner_id = @userId or arw.application_user_entity_id = @userId or aww.application_user_entity_id = @userId", sql.Named("userId", userId)).
+		Group("book_realm_entities.id, book_realm_entities.created_at, book_realm_entities.updated_at, book_realm_entities.deleted_at, book_realm_entities.book_name,book_realm_entities.owner_id").
 		Find(&bookRealms).Error
 	if findError == nil {
 		return
@@ -69,7 +70,11 @@ func (r *RepositoryImpl) FindAllBookRealmsCorrespondingToUser(userId string) (bo
 }
 
 func (r *RepositoryImpl) FindBookRealmByID(bookingID uint) (bookRealm model.BookRealmEntity, err model.TokyError) {
-	findError := r.connection.Where(bookingID).Find(&bookRealm).Error
+	findError := r.connection.
+		Preload("Owner").
+		Preload("WriteAccess.ApplicationUserEntity").
+		Preload("ReadAccess.ApplicationUserEntity").
+		Where(bookingID).Find(&bookRealm).Error
 	if findError == nil {
 		return
 	}

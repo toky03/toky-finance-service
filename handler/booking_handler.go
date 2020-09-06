@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/context"
+	"github.com/gorilla/mux"
 	"github.com/toky03/toky-finance-accounting-service/model"
 	"github.com/toky03/toky-finance-accounting-service/service"
 )
@@ -14,6 +15,7 @@ import (
 type bookRealmService interface {
 	FindBookRealmsPermittedForUser(userId string) ([]model.BookRealmDTO, model.TokyError)
 	CreateBookRealm(model.BookRealmDTO, string) model.TokyError
+	FindBookRealmById(bookId string) (bookRealmDto model.BookRealmDTO, err model.TokyError)
 }
 
 type userService interface {
@@ -35,8 +37,29 @@ func CreateBookRealmHandler() *BookRealmHandler {
 	}
 }
 
+func (h *BookRealmHandler) ReadBookRealmById(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	bookID := vars["bookID"]
+	bookRealm, err := h.BookRealmService.FindBookRealmById(bookID)
+	if model.IsExisting(err) {
+		handleError(err, w)
+		return
+	}
+	js, marshalErr := json.Marshal(bookRealm)
+	if marshalErr != nil {
+		http.Error(w, marshalErr.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
+
+}
+
 func (h *BookRealmHandler) ReadBookRealms(w http.ResponseWriter, r *http.Request) {
 	userName := context.Get(r, "user-id")
+	if userName == "" {
+		return
+	}
 	bookRealms, err := h.BookRealmService.FindBookRealmsPermittedForUser(userName.(string))
 	if model.IsExisting(err) {
 		handleError(err, w)

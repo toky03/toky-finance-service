@@ -1,8 +1,10 @@
 package service
 
 import (
+	"fmt"
 	"strconv"
 
+	"github.com/toky03/toky-finance-accounting-service/bookingutils"
 	"github.com/toky03/toky-finance-accounting-service/model"
 	"github.com/toky03/toky-finance-accounting-service/repository"
 )
@@ -11,6 +13,7 @@ type BookingRepository interface {
 	FindAllBookRealmsCorrespondingToUser(userId string) ([]model.BookRealmEntity, model.TokyError)
 	FindApplicationUsersByID([]string) ([]model.ApplicationUserEntity, model.TokyError)
 	FindApplicationUserByID(string) (model.ApplicationUserEntity, model.TokyError)
+	FindBookRealmByID(bookingID uint) (bookRealm model.BookRealmEntity, err model.TokyError)
 	PersistBookRealm(model.BookRealmEntity) model.TokyError
 }
 type BookServiceImpl struct {
@@ -21,6 +24,16 @@ func CreateBookService() *BookServiceImpl {
 	return &BookServiceImpl{
 		BookingRepository: repository.CreateRepository(),
 	}
+}
+
+func (r *BookServiceImpl) FindBookRealmById(bookID string) (bookRealmDto model.BookRealmDTO, err model.TokyError) {
+	bookIdUint, convErr := bookingutils.StringToUint(bookID)
+	if convErr != nil {
+		return model.BookRealmDTO{}, model.CreateBusinessError(fmt.Sprintf("Could not read Book Id: %s", bookID), convErr)
+	}
+	bookRealmEntity, err := r.BookingRepository.FindBookRealmByID(bookIdUint)
+	bookRealmDto = convertBookRealmEntityToDto(bookRealmEntity)
+	return
 }
 
 func (r *BookServiceImpl) FindBookRealmsPermittedForUser(userId string) (bookRealmDtos []model.BookRealmDTO, err model.TokyError) {

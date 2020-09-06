@@ -24,6 +24,7 @@ type BookHandler interface {
 	UpdateBookRealm(w http.ResponseWriter, r *http.Request)
 	ReadAccountingUsers(w http.ResponseWriter, r *http.Request)
 	CreateUser(w http.ResponseWriter, r *http.Request)
+	ReadBookRealmById(w http.ResponseWriter, r *http.Request)
 }
 
 type MonitoringHandler interface {
@@ -56,6 +57,7 @@ func main() {
 	r.HandleFunc("/api/book", bookHandler.ReadBookRealms).Methods("GET")
 	r.HandleFunc("/api/book", bookHandler.CreateBookRealm).Methods("POST")
 	r.HandleFunc("/api/book/{bookID}", bookHandler.UpdateBookRealm).Methods("PUT")
+	r.HandleFunc("/api/book/{bookID}", bookHandler.ReadBookRealmById).Methods("GET")
 	r.HandleFunc("/api/book/{bookID}/account", accountingHandler.ReadAccounts).Methods("GET")
 	r.HandleFunc("/api/book/{bookID}/accountOption", accountingHandler.ReadAccountOptions).Methods("GET")
 	r.HandleFunc("/api/book/{bookID}/closingStatements", accountingHandler.ReadClosingStatements).Methods("GET")
