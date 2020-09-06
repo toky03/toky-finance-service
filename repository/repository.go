@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -48,8 +49,14 @@ func CreateRepository() *RepositoryImpl {
 }
 
 // FindAllBookRealms returns all Bookrealms
-func (r *RepositoryImpl) FindAllBookRealms() (bookRealms []model.BookRealmEntity, err model.TokyError) {
-	findError := r.connection.Preload("Owner").Preload("WriteAccess.ApplicationUserEntity").Preload("ReadAccess.ApplicationUserEntity").Find(&bookRealms).Error
+func (r *RepositoryImpl) FindAllBookRealmsCorrespondingToUser(userId string) (bookRealms []model.BookRealmEntity, err model.TokyError) {
+	findError := r.connection.Preload("Owner").Preload("WriteAccess.ApplicationUserEntity").Preload("ReadAccess.ApplicationUserEntity").
+		Joins("LEFT JOIN map_read_accesses mra on book_realm_entities.id = mra.book_realm_entity_id").
+		Joins("LEFT JOIN read_application_user_wrappers arw ON arw.id = mra.read_application_user_wrapper_id").
+		Joins("LEFT JOIN map_write_accesses mwa on book_realm_entities.id = mwa.book_realm_entity_id").
+		Joins("LEFT JOIN write_application_user_wrappers aww ON aww.id = mwa.write_application_user_wrapper_id").
+		Where("owner_id = @userId or arw.application_user_entity_id = @userId or aww.application_user_entity_id = @userId", sql.Named("userId", userId)).
+		Find(&bookRealms).Error
 	if findError == nil {
 		return
 	}
@@ -170,10 +177,17 @@ func (r *RepositoryImpl) UpdateApplicationUser(applicationUser model.Application
 }
 
 func (r *RepositoryImpl) DeleteUser(userId string) model.TokyError {
-	deleteErr := r.connection.Where("id = ?", userId).Delete(&model.ApplicationUserEntity{}).Error
+	tx := r.connection.Begin()
+	deleteErr := tx.Exec(fmt.Sprintf("DELETE FROM map_write_accesses WHERE write_application_user_wrapper_id = (select id from write_application_user_wrappers where application_user_entity_id = '%v')", userId)).Error
+	deleteErr = tx.Exec(fmt.Sprintf("DELETE FROM map_read_accesses WHERE read_application_user_wrapper_id = (select id from read_application_user_wrappers where application_user_entity_id = '%v')", userId)).Error
+	deleteErr = tx.Where("application_user_entity_id = ?", userId).Delete(&model.WriteApplicationUserWrapper{}).Error
+	deleteErr = tx.Where("application_user_entity_id = ?", userId).Delete(&model.ReadApplicationUserWrapper{}).Error
+	deleteErr = tx.Where("id = ?", userId).Delete(&model.ApplicationUserEntity{}).Error
 	if deleteErr != nil {
+		tx.Rollback()
 		return model.CreateTechnicalError(fmt.Sprintf("Could not Delete User with Id %v", userId), deleteErr)
 	}
+	tx.Commit()
 	return nil
 }
 func (r *RepositoryImpl) DeleteRealmsFromUser(userId string) model.TokyError {

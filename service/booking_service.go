@@ -8,7 +8,7 @@ import (
 )
 
 type BookingRepository interface {
-	FindAllBookRealms() ([]model.BookRealmEntity, model.TokyError)
+	FindAllBookRealmsCorrespondingToUser(userId string) ([]model.BookRealmEntity, model.TokyError)
 	FindApplicationUsersByID([]string) ([]model.ApplicationUserEntity, model.TokyError)
 	FindApplicationUserByID(string) (model.ApplicationUserEntity, model.TokyError)
 	PersistBookRealm(model.BookRealmEntity) model.TokyError
@@ -23,8 +23,8 @@ func CreateBookService() *BookServiceImpl {
 	}
 }
 
-func (r *BookServiceImpl) FindAllBookRealms() (bookRealmDtos []model.BookRealmDTO, err model.TokyError) {
-	bookRealmEntities, err := r.BookingRepository.FindAllBookRealms()
+func (r *BookServiceImpl) FindBookRealmsPermittedForUser(userId string) (bookRealmDtos []model.BookRealmDTO, err model.TokyError) {
+	bookRealmEntities, err := r.BookingRepository.FindAllBookRealmsCorrespondingToUser(userId)
 	bookRealmDtos = make([]model.BookRealmDTO, 0, len(bookRealmEntities))
 	for _, bookRealmEntity := range bookRealmEntities {
 		bookRealmDtos = append(bookRealmDtos, convertBookRealmEntityToDto(bookRealmEntity))

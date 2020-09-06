@@ -12,7 +12,7 @@ import (
 
 // BookRealmService interface to define Contract
 type bookRealmService interface {
-	FindAllBookRealms() ([]model.BookRealmDTO, model.TokyError)
+	FindBookRealmsPermittedForUser(userId string) ([]model.BookRealmDTO, model.TokyError)
 	CreateBookRealm(model.BookRealmDTO, string) model.TokyError
 }
 
@@ -36,7 +36,8 @@ func CreateBookRealmHandler() *BookRealmHandler {
 }
 
 func (h *BookRealmHandler) ReadBookRealms(w http.ResponseWriter, r *http.Request) {
-	bookRealms, err := h.BookRealmService.FindAllBookRealms()
+	userName := context.Get(r, "user-id")
+	bookRealms, err := h.BookRealmService.FindBookRealmsPermittedForUser(userName.(string))
 	if model.IsExisting(err) {
 		handleError(err, w)
 		return
