@@ -38,6 +38,7 @@ func (r *BookServiceImpl) FindBookRealmById(bookID string) (bookRealmDto model.B
 
 func (r *BookServiceImpl) FindBookRealmsPermittedForUser(userId string) (bookRealmDtos []model.BookRealmDTO, err model.TokyError) {
 	bookRealmEntities, err := r.BookingRepository.FindAllBookRealmsCorrespondingToUser(userId)
+
 	bookRealmDtos = make([]model.BookRealmDTO, 0, len(bookRealmEntities))
 	for _, bookRealmEntity := range bookRealmEntities {
 		bookRealmDtos = append(bookRealmDtos, convertBookRealmEntityToDto(bookRealmEntity))

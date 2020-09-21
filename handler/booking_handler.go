@@ -22,6 +22,7 @@ type userService interface {
 	CreateUser(model.ApplicationUserDTO) model.TokyError
 	SearchUsers(limit, searchTerm string) ([]model.ApplicationUserDTO, model.TokyError)
 	FindUserByUsername(userName string) (model.ApplicationUserDTO, model.TokyError)
+	HasWriteAccessFromBook(userId string, bookId string) (bool, model.TokyError)
 }
 
 // BookRealmHandler implementaion of Handler
@@ -56,11 +57,11 @@ func (h *BookRealmHandler) ReadBookRealmById(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *BookRealmHandler) ReadBookRealms(w http.ResponseWriter, r *http.Request) {
-	userName := context.Get(r, "user-id")
-	if userName == "" {
+	userId := context.Get(r, "user-id")
+	if userId == "" {
 		return
 	}
-	bookRealms, err := h.BookRealmService.FindBookRealmsPermittedForUser(userName.(string))
+	bookRealms, err := h.BookRealmService.FindBookRealmsPermittedForUser(userId.(string))
 	if model.IsExisting(err) {
 		handleError(err, w)
 		return

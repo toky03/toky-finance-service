@@ -1,4 +1,4 @@
-FROM golang as builder
+FROM golang:1.15.2 as builder
 # Git is required for fetching the dependencies.
 # Ca-certificates is required to call HTTPS endpoints.
 RUN apt-get update && apt-get install git ca-certificates && update-ca-certificates

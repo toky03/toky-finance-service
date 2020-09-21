@@ -267,8 +267,12 @@ func calculateSum(buchungen []model.TableBookingDTO, column string) (float64, mo
 	sum := 0.0
 	for _, booking := range buchungen {
 		if booking.Column == column {
+			if booking.Ammount == "" {
+				continue
+			}
 			ammount, err := strconv.ParseFloat(booking.Ammount, 64)
-			if err != nil {
+			if err != nil && booking.Ammount != "" {
+				log.Printf("Error with Parsing %v on booking %v", booking.Ammount, booking.BookingID)
 				return 0.0, model.CreateTechnicalError(fmt.Sprintf("Could not convert string %s as a Float for  ", booking.Ammount), err)
 			}
 			sum += ammount

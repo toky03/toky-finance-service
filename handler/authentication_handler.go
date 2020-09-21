@@ -9,6 +9,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/context"
+	"github.com/gorilla/mux"
 	jwtauthhandler "github.com/toky03/jwt-auth-handler"
 	"github.com/toky03/toky-finance-accounting-service/model"
 	"github.com/toky03/toky-finance-accounting-service/service"
@@ -34,13 +35,40 @@ func CreateAuthenticationHandler() *AuthenticationHandlerImpl {
 	}
 }
 
+func (h *AuthenticationHandlerImpl) HasWritePermissions(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userId := context.Get(r, "user-id")
+		if userId == "" {
+			return
+		}
+		vars := mux.Vars(r)
+		bookID := vars["bookID"]
+		isPermitted, err := h.userService.HasWriteAccessFromBook(userId.(string), bookID)
+		log.Printf("Has Write permissions %v \n", isPermitted)
+		if model.IsExisting(err) {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Could not Read Write Permissions"))
+			return
+		}
+		if isPermitted {
+			next.ServeHTTP(w, r)
+			return
+		} else {
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte("User is not allowed to write to this Book"))
+			next.ServeHTTP(w, r)
+			return
+		}
+	})
+
+}
+
 func (h *AuthenticationHandlerImpl) AuthenticationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := strings.Split(r.Header.Get("Authorization"), "Bearer ")
 		if len(authHeader) != 2 {
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte("Malformed Token"))
-			next.ServeHTTP(w, r)
 			return
 		} else {
 			jwtToken := authHeader[1]
@@ -65,7 +93,6 @@ func (h *AuthenticationHandlerImpl) AuthenticationMiddleware(next http.Handler) 
 				log.Printf("token %v", jwtToken)
 				w.WriteHeader(http.StatusUnauthorized)
 				w.Write([]byte("Invalid Token"))
-				next.ServeHTTP(w, r)
 				return
 			}
 			// access := claims["resource_access"]
@@ -74,7 +101,6 @@ func (h *AuthenticationHandlerImpl) AuthenticationMiddleware(next http.Handler) 
 			if model.IsExisting(userServiceErr) {
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte(userServiceErr.ErrorMessage()))
-				next.ServeHTTP(w, r)
 				return
 			}
 			context.Set(r, "user-id", applicationUser.UserID)

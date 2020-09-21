@@ -14,6 +14,12 @@ func convertBookingEntitiesToDTOs(bookigEntities []model.BookingEntity, column s
 }
 
 func convertAccountEntityToDTO(entity model.AccountTableEntity, buchungen []model.TableBookingDTO, sum, saldo string) model.AccountTableDTO {
+	if sum == "" {
+		sum = "0"
+	}
+	if saldo == "" {
+		saldo = "0"
+	}
 	return model.AccountTableDTO{
 		AccountID:   bookingutils.UintToString(entity.Model.ID),
 		AccountName: entity.AccountName,
