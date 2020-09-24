@@ -15,8 +15,7 @@ type UserRepository interface {
 	UpdateApplicationUser(model.ApplicationUserEntity) model.TokyError
 	FindAllApplicationUsersBySearchTerm(limit int, searchTerm string) ([]model.ApplicationUserEntity, model.TokyError)
 	FindAllApplicationUsers() ([]model.ApplicationUserEntity, model.TokyError)
-	DeleteUser(userId string) model.TokyError
-	DeleteRealmsFromUser(userId string) model.TokyError
+	DeleteUserWithAssociations(userId string) model.TokyError
 	FindAllApplicationUsersByUserName(userName string) (model.ApplicationUserEntity, model.TokyError)
 	FindBookRealmByID(bookingID uint) (bookRealm model.BookRealmEntity, err model.TokyError)
 }
@@ -55,11 +54,7 @@ func (s *applicationUserServiceImpl) UpdateUser(applicationUser model.Applicatio
 
 func (s *applicationUserServiceImpl) DeleteUser(userId string) model.TokyError {
 
-	err := s.userRepository.DeleteRealmsFromUser(userId)
-	if model.IsExisting(err) {
-		return err
-	}
-	err = s.userRepository.DeleteUser(userId)
+	err := s.userRepository.DeleteUserWithAssociations(userId)
 	if model.IsExisting(err) {
 		return err
 	}

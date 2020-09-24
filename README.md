@@ -1,6 +1,14 @@
 ## Configuration Env Variables
+- DB_NAME
+- DB_PASS
+- DB_USER
+- DB_TYPE
+- DB_HOST
+- DB_PORT
 - USER_BATCH_PORT
 - OPENID_JWKS_URL
+#### build browser nginx
+`docker build  -t toky03/simpleaccounting-backend .`
 
 ## Protocolbuffer
 ### make protoc-gen-go available

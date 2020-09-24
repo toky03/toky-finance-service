@@ -181,26 +181,43 @@ func (r *RepositoryImpl) UpdateApplicationUser(applicationUser model.Application
 	return nil
 }
 
-func (r *RepositoryImpl) DeleteUser(userId string) model.TokyError {
+func (r *RepositoryImpl) DeleteUserWithAssociations(userId string) model.TokyError {
 	tx := r.connection.Begin()
-	deleteErr := tx.Exec(fmt.Sprintf("DELETE FROM map_write_accesses WHERE write_application_user_wrapper_id = (select id from write_application_user_wrappers where application_user_entity_id = '%v')", userId)).Error
-	deleteErr = tx.Exec(fmt.Sprintf("DELETE FROM map_read_accesses WHERE read_application_user_wrapper_id = (select id from read_application_user_wrappers where application_user_entity_id = '%v')", userId)).Error
-	deleteErr = tx.Where("application_user_entity_id = ?", userId).Delete(&model.WriteApplicationUserWrapper{}).Error
-	deleteErr = tx.Where("application_user_entity_id = ?", userId).Delete(&model.ReadApplicationUserWrapper{}).Error
+	var bookIds []uint
+	tx.Where("owner_id = ?", userId).Find(&model.BookRealmEntity{}).Select("id").Pluck("id", &bookIds)
+	deleteErr := deleteUser(tx, userId)
+	deleteErr = deleteUserMapsFromBook(tx, bookIds)
+	deleteErr = deleteBookingTables(tx, bookIds)
+	deleteErr = deleteAccountingTables(tx, bookIds)
+	deleteErr = tx.Where("owner_id = ?", userId).Delete(&model.BookRealmEntity{}).Error
 	deleteErr = tx.Where("id = ?", userId).Delete(&model.ApplicationUserEntity{}).Error
+
 	if deleteErr != nil {
 		tx.Rollback()
-		return model.CreateTechnicalError(fmt.Sprintf("Could not Delete User with Id %v", userId), deleteErr)
+		return model.CreateTechnicalError(fmt.Sprintf("Could not Delete and Realm for User with Id %v", userId), deleteErr)
 	}
 	tx.Commit()
 	return nil
 }
-func (r *RepositoryImpl) DeleteRealmsFromUser(userId string) model.TokyError {
-	deleteErr := r.connection.Where("owner_id = ?", userId).Delete(&model.BookRealmEntity{}).Error
-	if deleteErr != nil {
-		return model.CreateTechnicalError(fmt.Sprintf("Could not Delete BookRealms from user with Id %v", userId), deleteErr)
-	}
-	return nil
+func deleteBookingTables(tx *gorm.DB, bookIds []uint) error {
+	return tx.Exec("DELETE from booking_entities where haben_booking_account_id in (select id from account_table_entities where book_realm_entity_id in (@bookIds))", sql.Named("bookIds", bookIds)).Error
+}
+
+func deleteAccountingTables(tx *gorm.DB, bookbookIds []uint) error {
+	return tx.Exec("DELETE from account_table_entities where book_realm_entity_id in (@bookIds) ", sql.Named("bookIds", bookbookIds)).Error
+}
+func deleteUserMapsFromBook(tx *gorm.DB, bookIds []uint) error {
+	deleteErr := tx.Exec("DELETE FROM map_write_accesses WHERE book_realm_entity_id in (@bookIds)", sql.Named("bookIds", bookIds)).Error
+	deleteErr = tx.Exec("DELETE FROM map_read_accesses WHERE book_realm_entity_id in (@bookIds)", sql.Named("bookIds", bookIds)).Error
+	return deleteErr
+}
+
+func deleteUser(tx *gorm.DB, userId string) error {
+	deleteErr := tx.Debug().Exec("DELETE FROM map_write_accesses WHERE write_application_user_wrapper_id in (select id from write_application_user_wrappers where application_user_entity_id = @userId)", sql.Named("userId", userId)).Error
+	deleteErr = tx.Debug().Exec("DELETE FROM map_read_accesses WHERE read_application_user_wrapper_id in (select id from read_application_user_wrappers where application_user_entity_id = @userId)", sql.Named("userId", userId)).Error
+	deleteErr = tx.Debug().Where("application_user_entity_id = ?", userId).Delete(&model.WriteApplicationUserWrapper{}).Error
+	deleteErr = tx.Debug().Where("application_user_entity_id = ?", userId).Delete(&model.ReadApplicationUserWrapper{}).Error
+	return deleteErr
 }
 
 func (r *RepositoryImpl) FindAccountsByBookId(bookId uint) (accountTableEntities []model.AccountTableEntity, err model.TokyError) {
