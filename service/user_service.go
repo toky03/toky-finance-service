@@ -2,9 +2,11 @@ package service
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
+	"github.com/toky03/toky-finance-accounting-service/adapter"
 	"github.com/toky03/toky-finance-accounting-service/bookingutils"
 	"github.com/toky03/toky-finance-accounting-service/model"
 	"github.com/toky03/toky-finance-accounting-service/repository"
@@ -20,13 +22,19 @@ type UserRepository interface {
 	FindBookRealmByID(bookingID uint) (bookRealm model.BookRealmEntity, err model.TokyError)
 }
 
+type userBatchAdapter interface {
+	TriggerUserBatchRun() model.TokyError
+}
+
 type applicationUserServiceImpl struct {
-	userRepository UserRepository
+	userRepository   UserRepository
+	userBatchAdapter userBatchAdapter
 }
 
 func CreateApplicationUserService() *applicationUserServiceImpl {
 	return &applicationUserServiceImpl{
-		userRepository: repository.CreateRepository(),
+		userRepository:   repository.CreateRepository(),
+		userBatchAdapter: adapter.CreateUserBatchAdapter(),
 	}
 }
 
@@ -68,6 +76,12 @@ func (s *applicationUserServiceImpl) SearchUsers(limit, searchTerm string) ([]mo
 	}
 	trimmedSearch := strings.TrimSpace(searchTerm)
 	applicationUsersEntity, repoError := s.userRepository.FindAllApplicationUsersBySearchTerm(limitUint, trimmedSearch)
+	if model.IsExisting(repoError) && !repoError.IsTechnicalError() {
+		if s.triggerBatchRunSucessfully() {
+			applicationUsersEntity, repoError = s.userRepository.FindAllApplicationUsersBySearchTerm(limitUint, trimmedSearch)
+		}
+
+	}
 	if repoError != nil {
 		return []model.ApplicationUserDTO{}, repoError
 	}
@@ -78,8 +92,23 @@ func (s *applicationUserServiceImpl) SearchUsers(limit, searchTerm string) ([]mo
 	return applicationUsersDto, nil
 }
 
+func (s *applicationUserServiceImpl) triggerBatchRunSucessfully() bool {
+	log.Println("Trigger User Batch manually")
+	triggerErr := s.userBatchAdapter.TriggerUserBatchRun()
+	if model.IsExisting(triggerErr) {
+		log.Printf("Error from trigger %v", triggerErr)
+		return false
+	}
+	return true
+}
+
 func (s *applicationUserServiceImpl) FindUserByUsername(userName string) (model.ApplicationUserDTO, model.TokyError) {
 	applicationUserEntity, repoError := s.userRepository.FindAllApplicationUsersByUserName(userName)
+	if model.IsExisting(repoError) && !repoError.IsTechnicalError() {
+		if s.triggerBatchRunSucessfully() {
+			applicationUserEntity, repoError = s.userRepository.FindAllApplicationUsersByUserName(userName)
+		}
+	}
 	if repoError != nil {
 		return model.ApplicationUserDTO{}, repoError
 	}
@@ -98,17 +127,28 @@ func (s *applicationUserServiceImpl) ReadAllUsers() ([]model.ApplicationUserDTO,
 	return applicationUsersDto, nil
 }
 
-func (s *applicationUserServiceImpl) HasWriteAccessFromBook(userId string, bookID string) (bool, model.TokyError) {
+func (s *applicationUserServiceImpl) HasWriteAccessFromBook(userId, bookID string) (bool, model.TokyError) {
+	bookRealm, err := s.readBook(bookID)
+	if model.IsExisting(err) {
+		return false, err
+	}
+	return bookRealm.OwnerID == userId || containsUser(bookRealm.WriteAccess, userId), nil
+}
+
+func (s *applicationUserServiceImpl) IsOwnerOfBook(userId, bookId string) (bool, model.TokyError) {
+	bookRealm, err := s.readBook(bookId)
+	if model.IsExisting(err) {
+		return false, err
+	}
+	return bookRealm.OwnerID == userId, nil
+}
+
+func (s *applicationUserServiceImpl) readBook(bookID string) (model.BookRealmEntity, model.TokyError) {
 	bookIdUint, convErr := bookingutils.StringToUint(bookID)
 	if convErr != nil {
-		return false, model.CreateBusinessError(fmt.Sprintf("Could not read Book Id: %s", bookID), convErr)
+		return model.BookRealmEntity{}, model.CreateBusinessError(fmt.Sprintf("Could not read Book Id: %s", bookID), convErr)
 	}
-	bookRealm, repoError := s.userRepository.FindBookRealmByID(bookIdUint)
-	if model.IsExisting(repoError) {
-		return false, repoError
-	}
-
-	return bookRealm.OwnerID == userId || containsUser(bookRealm.WriteAccess, userId), nil
+	return s.userRepository.FindBookRealmByID(bookIdUint)
 }
 
 func containsUser(writeApplicationUsers []*model.WriteApplicationUserWrapper, userId string) bool {

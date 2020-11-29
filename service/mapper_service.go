@@ -8,7 +8,7 @@ import (
 func convertBookingEntitiesToDTOs(bookigEntities []model.BookingEntity, column string) (bookingDTOS []model.TableBookingDTO) {
 	bookingDTOS = make([]model.TableBookingDTO, 0, len(bookigEntities))
 	for _, bookingEntity := range bookigEntities {
-		bookingDTOS = append(bookingDTOS, bookingEntity.ToBookingDTO(column))
+		bookingDTOS = append(bookingDTOS, bookingEntity.ToTableBookingDTO(column))
 	}
 	return
 }

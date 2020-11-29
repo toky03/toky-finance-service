@@ -12,7 +12,9 @@ import (
 type AccountingService interface {
 	ReadAccountsFromBook(string) ([]model.AccountTableDTO, model.TokyError)
 	ReadAccountOptionsFromBook(string) ([]model.AccountOptionDTO, model.TokyError)
+	ReadBookings(string) ([]model.BookingDTO, model.TokyError)
 	CreateAccount(bookID string, account model.AccountOptionDTO) model.TokyError
+	UpdateAccount(accountID string, account model.AccountOptionDTO) model.TokyError
 	CreateBooking(booking model.BookingDTO) model.TokyError
 	ReadClosingStatements(bookID string) (model.ClosingSheetStatements, model.TokyError)
 }
@@ -100,8 +102,42 @@ func (h *AccountingHandlerImpl) CreateAccount(w http.ResponseWriter, r *http.Req
 	}
 	w.WriteHeader(http.StatusCreated)
 }
+
+func (h *AccountingHandlerImpl) UpdateAccount(w http.ResponseWriter, r *http.Request) {
+	var account model.AccountOptionDTO
+	vars := mux.Vars(r)
+	accountID := vars["accountID"]
+
+	decoderError := json.NewDecoder(r.Body).Decode(&account)
+	if decoderError != nil {
+		http.Error(w, decoderError.Error(), http.StatusBadRequest)
+		return
+	}
+
+	accountCreationError := h.AccountingService.UpdateAccount(accountID, account)
+	if model.IsExisting(accountCreationError) {
+		handleError(accountCreationError, w)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+}
+
 func (h *AccountingHandlerImpl) ReadBookings(w http.ResponseWriter, r *http.Request) {
 
+	vars := mux.Vars(r)
+	bookID := vars["bookID"]
+	bookings, err := h.AccountingService.ReadBookings(bookID)
+	if model.IsExisting(err) {
+		handleError(err, w)
+		return
+	}
+	js, marshalError := json.Marshal(bookings)
+	if marshalError != nil {
+		http.Error(w, marshalError.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
 }
 func (h *AccountingHandlerImpl) CreateBooking(w http.ResponseWriter, r *http.Request) {
 	var booking model.BookingDTO

@@ -59,6 +59,16 @@ type BookingEntity struct {
 	Description           string             `gorm:"description"`
 }
 
+func (applicationUserEntity ApplicationUserEntity) ToApplicationUserDTO() ApplicationUserDTO {
+	return ApplicationUserDTO{
+		UserID:    applicationUserEntity.ID,
+		EMail:     applicationUserEntity.EMail,
+		FirstName: applicationUserEntity.FirstName,
+		LastName:  applicationUserEntity.LastName,
+		UserName:  applicationUserEntity.UserName,
+	}
+}
+
 func (accountEntity AccountTableEntity) ToOptionDTO() AccountOptionDTO {
 	return AccountOptionDTO{
 		AccountName:  accountEntity.AccountName,
@@ -71,11 +81,21 @@ func (accountEntity AccountTableEntity) ToOptionDTO() AccountOptionDTO {
 	}
 }
 
-func (bookingEntity BookingEntity) ToBookingDTO(column string) TableBookingDTO {
+func (bookingEntity BookingEntity) ToBookingDTO() BookingDTO {
+	return BookingDTO{
+		Ammount:      bookingEntity.Ammount,
+		Date:         bookingEntity.Date,
+		Description:  bookingEntity.Description,
+		HabenAccount: bookingutils.UintToString(bookingEntity.HabenBookingAccountID),
+		SollAccount:  bookingutils.UintToString(bookingEntity.SollBookingAccountID),
+	}
+}
+
+func (bookingEntity BookingEntity) ToTableBookingDTO(column string) TableBookingDTO {
 	var bookingAccount string
 	if column == "haben" {
 		bookingAccount = bookingEntity.SollBookingAccount.AccountName
-	} else {
+	} else if column == "soll" {
 		bookingAccount = bookingEntity.HabenBookingAccount.AccountName
 	}
 	return TableBookingDTO{

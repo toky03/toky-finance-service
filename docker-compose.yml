@@ -1,5 +1,11 @@
 version: '3'
 
+volumes:
+    postgres_data:
+        driver: local
+    theme:
+        driver: local
+
 services:
     toky-finance-service:
         build: .
@@ -15,10 +21,12 @@ services:
             - DB_PORT=5432
             - USER_BATCH_PORT=3003
             - OPENID_JWKS_URL=http://localhost:8080/auth/realms/toky-finance/protocol/openid-connect/certs
+            - USER_BATCH_TRIGGER_ENDPOINT=http://localhost:3005/triggerBatchRun
         network_mode: "host"
     user-batch:
-        image: toky03/user-batch:0.0.1
+        image: toky03/user-batch:0.1.2
         environment:
+            - REST_PORT=3005
             - INTERVAL_SECONDS=10
             - ID_PROVIDER_ENDPOINT=http://localhost:8080/auth/admin/realms/toky-finance/users
             - ACCOUNTING_SERVER_ENDPOINT=localhost:3003

@@ -44,7 +44,6 @@ func (h *AuthenticationHandlerImpl) HasWritePermissions(next http.Handler) http.
 		vars := mux.Vars(r)
 		bookID := vars["bookID"]
 		isPermitted, err := h.userService.HasWriteAccessFromBook(userId.(string), bookID)
-		log.Printf("Has Write permissions %v \n", isPermitted)
 		if model.IsExisting(err) {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Could not Read Write Permissions"))
@@ -61,6 +60,32 @@ func (h *AuthenticationHandlerImpl) HasWritePermissions(next http.Handler) http.
 		}
 	})
 
+}
+
+func (h *AuthenticationHandlerImpl) IsOwner(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userId := context.Get(r, "user-id")
+		if userId == "" {
+			return
+		}
+		vars := mux.Vars(r)
+		bookID := vars["bookID"]
+		isPermitted, err := h.userService.IsOwnerOfBook(userId.(string), bookID)
+		if model.IsExisting(err) {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Could not Read Write Permissions"))
+			return
+		}
+		if isPermitted {
+			next.ServeHTTP(w, r)
+			return
+		} else {
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte("User is not allowed to modify this Book"))
+			next.ServeHTTP(w, r)
+			return
+		}
+	})
 }
 
 func (h *AuthenticationHandlerImpl) AuthenticationMiddleware(next http.Handler) http.Handler {

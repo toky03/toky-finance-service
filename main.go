@@ -14,6 +14,7 @@ type AccountingHandler interface {
 	ReadBookings(w http.ResponseWriter, r *http.Request)
 	CreateBooking(w http.ResponseWriter, r *http.Request)
 	CreateAccount(w http.ResponseWriter, r *http.Request)
+	UpdateAccount(w http.ResponseWriter, r *http.Request)
 	SaveAccountOption(w http.ResponseWriter, r *http.Request)
 	ReadClosingStatements(w http.ResponseWriter, r *http.Request)
 }
@@ -22,6 +23,7 @@ type BookHandler interface {
 	ReadBookRealms(w http.ResponseWriter, r *http.Request)
 	CreateBookRealm(w http.ResponseWriter, r *http.Request)
 	UpdateBookRealm(w http.ResponseWriter, r *http.Request)
+	DeleteBookRealm(w http.ResponseWriter, r *http.Request)
 	ReadAccountingUsers(w http.ResponseWriter, r *http.Request)
 	CreateUser(w http.ResponseWriter, r *http.Request)
 	ReadBookRealmById(w http.ResponseWriter, r *http.Request)
@@ -35,6 +37,7 @@ type MonitoringHandler interface {
 type AuthenticationHandler interface {
 	AuthenticationMiddleware(http.Handler) http.Handler
 	HasWritePermissions(next http.Handler) http.Handler
+	IsOwner(next http.Handler) http.Handler
 }
 
 func main() {
@@ -59,12 +62,15 @@ func main() {
 	api := r.PathPrefix("/api").Subrouter()
 	api.HandleFunc("/book", bookHandler.ReadBookRealms).Methods("GET")
 	api.HandleFunc("/book", bookHandler.CreateBookRealm).Methods("POST")
-	api.HandleFunc("/book/{bookID}", bookHandler.UpdateBookRealm).Methods("PUT")
+	api.Handle("/book/{bookID}", authenticationHandler.IsOwner(http.HandlerFunc(bookHandler.UpdateBookRealm))).Methods("PUT")
+	api.Handle("/book/{bookID}", authenticationHandler.IsOwner(http.HandlerFunc(bookHandler.DeleteBookRealm))).Methods("DELETE")
 	api.HandleFunc("/book/{bookID}", bookHandler.ReadBookRealmById).Methods("GET")
 	api.HandleFunc("/book/{bookID}/account", accountingHandler.ReadAccounts).Methods("GET")
+	api.Handle("/book/{bookID}/account", authenticationHandler.HasWritePermissions(http.HandlerFunc(accountingHandler.CreateAccount))).Methods("POST")
+	api.Handle("/account/{accountID}", authenticationHandler.HasWritePermissions(http.HandlerFunc(accountingHandler.UpdateAccount))).Methods("PUT")
 	api.HandleFunc("/book/{bookID}/accountOption", accountingHandler.ReadAccountOptions).Methods("GET")
 	api.HandleFunc("/book/{bookID}/closingStatements", accountingHandler.ReadClosingStatements).Methods("GET")
-	api.Handle("/book/{bookID}/account", authenticationHandler.HasWritePermissions(http.HandlerFunc(accountingHandler.CreateAccount))).Methods("POST")
+	api.HandleFunc("/book/{bookID}/booking", accountingHandler.ReadBookings).Methods("GET")
 	api.Handle("/book/{bookID}/booking", authenticationHandler.HasWritePermissions(http.HandlerFunc(accountingHandler.CreateBooking))).Methods("POST")
 	api.HandleFunc("/user", bookHandler.CreateUser).Methods("POST")
 	api.HandleFunc("/user", bookHandler.ReadAccountingUsers).Methods("GET")

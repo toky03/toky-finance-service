@@ -19,24 +19,26 @@ type AccontingRepository interface {
 	FindRelatedHabenBuchungen(model.AccountTableEntity) ([]model.BookingEntity, model.TokyError)
 	FindRelatedSollBuchungen(model.AccountTableEntity) ([]model.BookingEntity, model.TokyError)
 	CreateAccount(entity model.AccountTableEntity) model.TokyError
+	UpdateAccount(entity *model.AccountTableEntity) model.TokyError
 	FindAccountByID(id uint) (model.AccountTableEntity, model.TokyError)
 	PersistBooking(entity model.BookingEntity) model.TokyError
 	FindBookRealmByID(id uint) (model.BookRealmEntity, model.TokyError)
+	FindBookingsByBookId(uint) ([]model.BookingEntity, model.TokyError)
 }
-type AccountingServiceImpl struct {
+type accountingServiceImpl struct {
 	AccountingRepository AccontingRepository
 }
 
-func CreateAccountingService() *AccountingServiceImpl {
-	return &AccountingServiceImpl{
+func CreateAccountingService() *accountingServiceImpl {
+	return &accountingServiceImpl{
 		AccountingRepository: repository.CreateRepository(),
 	}
 }
 
-func (s *AccountingServiceImpl) ReadAccountOptionsFromBook(bookId string) ([]model.AccountOptionDTO, model.TokyError) {
-	bookIDConv, err := strconv.Atoi(bookId)
-	if err != nil {
-		return nil, model.CreateTechnicalError(fmt.Sprintf("ReadAccountOptionsFromBook cannot convert bookId: %s", bookId), err)
+func (s *accountingServiceImpl) ReadAccountOptionsFromBook(bookId string) ([]model.AccountOptionDTO, model.TokyError) {
+	bookIDConv, err := convertBookId(bookId)
+	if model.IsExisting(err) {
+		return nil, err
 	}
 
 	accountEntities, findError := s.AccountingRepository.FindAccountsByBookId(uint(bookIDConv))
@@ -52,7 +54,7 @@ func (s *AccountingServiceImpl) ReadAccountOptionsFromBook(bookId string) ([]mod
 	return accountOptionDTOs, nil
 }
 
-func (s *AccountingServiceImpl) ReadClosingStatements(bookId string) (model.ClosingSheetStatements, model.TokyError) {
+func (s *accountingServiceImpl) ReadClosingStatements(bookId string) (model.ClosingSheetStatements, model.TokyError) {
 	accountTables, err := s.ReadAccountsFromBook(bookId)
 	if err != nil {
 		return model.ClosingSheetStatements{}, err
@@ -134,6 +136,34 @@ func (s *AccountingServiceImpl) ReadClosingStatements(bookId string) (model.Clos
 
 }
 
+func convertBookId(bookId string) (int, model.TokyError) {
+	bookIDConv, err := strconv.Atoi(bookId)
+	if err != nil {
+		return 0, model.CreateTechnicalError(fmt.Sprintf("ReadAccountOptionsFromBook cannot convert bookId: %s", bookId), err)
+	}
+	return bookIDConv, nil
+}
+
+func (s *accountingServiceImpl) ReadBookings(bookId string) ([]model.BookingDTO, model.TokyError) {
+	bookIDConv, err := convertBookId(bookId)
+	if model.IsExisting(err) {
+		return nil, err
+	}
+	bookings, err := s.AccountingRepository.FindBookingsByBookId(uint(bookIDConv))
+	if model.IsExisting(err) {
+		return nil, err
+	}
+	return convertBookings(bookings), nil
+}
+
+func convertBookings(bookingEntities []model.BookingEntity) []model.BookingDTO {
+	bookingDTOs := make([]model.BookingDTO, 0, len(bookingEntities))
+	for _, bookingEntity := range bookingEntities {
+		bookingDTOs = append(bookingDTOs, bookingEntity.ToBookingDTO())
+	}
+	return bookingDTOs
+}
+
 func appendBalanceSaldo(balanceSheet *model.BalanceSheet, difference float64) {
 	if bookingutils.AlmostZero(difference) {
 		balanceSheet.BalanceSum = bookingutils.FormatFloatToAmmount(difference)
@@ -149,7 +179,7 @@ func appendBalanceSaldo(balanceSheet *model.BalanceSheet, difference float64) {
 	return
 }
 
-func (s *AccountingServiceImpl) ReadAccountsFromBook(bookId string) ([]model.AccountTableDTO, model.TokyError) {
+func (s *accountingServiceImpl) ReadAccountsFromBook(bookId string) ([]model.AccountTableDTO, model.TokyError) {
 	bookIDConv, err := strconv.Atoi(bookId)
 	if err != nil {
 		return nil, model.CreateBusinessError(fmt.Sprintf("Could not convert bookId %v to as number", bookId), err)
@@ -179,7 +209,7 @@ func (s *AccountingServiceImpl) ReadAccountsFromBook(bookId string) ([]model.Acc
 	return accountDtos, nil
 }
 
-func (s *AccountingServiceImpl) CreateAccount(bookID string, account model.AccountOptionDTO) model.TokyError {
+func (s *accountingServiceImpl) CreateAccount(bookID string, account model.AccountOptionDTO) model.TokyError {
 	bookIdUint, err := bookingutils.StringToUint(bookID)
 	if err != nil {
 		return model.CreateBusinessError(fmt.Sprintf("Could not read Book Id: %s", bookID), err)
@@ -195,7 +225,34 @@ func (s *AccountingServiceImpl) CreateAccount(bookID string, account model.Accou
 	return s.AccountingRepository.CreateAccount(accountEntity)
 }
 
-func (s *AccountingServiceImpl) CreateBooking(booking model.BookingDTO) model.TokyError {
+func (s *accountingServiceImpl) UpdateAccount(accountID string, account model.AccountOptionDTO) model.TokyError {
+	accountIDUint, err := bookingutils.StringToUint(accountID)
+	if err != nil {
+		return model.CreateBusinessError(fmt.Sprintf("Could not convert account Id: %s", accountIDUint), err)
+	}
+	if valid, err := validateAccount(account); !valid {
+		return err
+	}
+	accountEntity, repoErr := s.AccountingRepository.FindAccountByID(accountIDUint)
+	if model.IsExisting(repoErr) {
+		return model.CreateBusinessError(fmt.Sprintf("Could not read Account with id %s", accountID), repoErr.Error())
+	}
+	mergeAccount(&accountEntity, account)
+
+	return s.AccountingRepository.UpdateAccount(&accountEntity)
+
+}
+
+func mergeAccount(accountEntity *model.AccountTableEntity, account model.AccountOptionDTO) {
+	accountEntity.AccountName = account.AccountName
+	accountEntity.Category = account.Category
+	accountEntity.Description = account.Description
+	accountEntity.Type = account.Type
+	accountEntity.SubCategory = account.SubCategory
+	accountEntity.StartBalance = account.StartBalance
+}
+
+func (s *accountingServiceImpl) CreateBooking(booking model.BookingDTO) model.TokyError {
 	err := validateBooking(booking)
 	if model.IsExisting(err) {
 		return err

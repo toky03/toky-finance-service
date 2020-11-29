@@ -11,11 +11,11 @@ import (
 	"gorm.io/gorm"
 )
 
-type RepositoryImpl struct {
+type repositoryImpl struct {
 	connection *gorm.DB
 }
 
-func CreateRepository() *RepositoryImpl {
+func CreateRepository() *repositoryImpl {
 	username := os.Getenv("DB_USER")
 	if username == "" {
 		username = "tokyuser"
@@ -43,13 +43,22 @@ func CreateRepository() *RepositoryImpl {
 	if err := conn.AutoMigrate(&model.ApplicationUserEntity{}, &model.BookRealmEntity{}, &model.AccountTableEntity{}, &model.BookingEntity{}); err != nil {
 		log.Printf("Error with Automigrate: %v", err)
 	}
-	return &RepositoryImpl{
+	return &repositoryImpl{
 		connection: conn,
 	}
 }
 
+func (r *repositoryImpl) GetOpenConnections() int {
+	sqlDB, err := r.connection.DB()
+	if err != nil {
+		return 0
+	}
+	return sqlDB.Stats().OpenConnections
+}
+
 // FindAllBookRealms returns all Bookrealms
-func (r *RepositoryImpl) FindAllBookRealmsCorrespondingToUser(userId string) (bookRealms []model.BookRealmEntity, err model.TokyError) {
+func (r *repositoryImpl) FindAllBookRealmsCorrespondingToUser(userId string) (bookRealms []model.BookRealmEntity, err model.TokyError) {
+
 	findError := r.connection.Preload("Owner").Preload("WriteAccess.ApplicationUserEntity").Preload("ReadAccess.ApplicationUserEntity").
 		Joins("LEFT JOIN map_read_accesses mra on book_realm_entities.id = mra.book_realm_entity_id").
 		Joins("LEFT JOIN read_application_user_wrappers arw ON arw.id = mra.read_application_user_wrapper_id").
@@ -69,7 +78,7 @@ func (r *RepositoryImpl) FindAllBookRealmsCorrespondingToUser(userId string) (bo
 	return
 }
 
-func (r *RepositoryImpl) FindBookRealmByID(bookingID uint) (bookRealm model.BookRealmEntity, err model.TokyError) {
+func (r *repositoryImpl) FindBookRealmByID(bookingID uint) (bookRealm model.BookRealmEntity, err model.TokyError) {
 	findError := r.connection.
 		Preload("Owner").
 		Preload("WriteAccess.ApplicationUserEntity").
@@ -87,7 +96,7 @@ func (r *RepositoryImpl) FindBookRealmByID(bookingID uint) (bookRealm model.Book
 }
 
 // FindAllApplicationUsersBySearchTerm returns all ApplicationUsers
-func (r *RepositoryImpl) FindAllApplicationUsersBySearchTerm(limit int, searchTerm string) (applicationUsers []model.ApplicationUserEntity, err model.TokyError) {
+func (r *repositoryImpl) FindAllApplicationUsersBySearchTerm(limit int, searchTerm string) (applicationUsers []model.ApplicationUserEntity, err model.TokyError) {
 	findError := r.connection.Limit(limit).Where("user_name LIKE ?", "%"+searchTerm+"%").Find(&applicationUsers).Error
 	if findError == nil {
 		return
@@ -100,8 +109,8 @@ func (r *RepositoryImpl) FindAllApplicationUsersBySearchTerm(limit int, searchTe
 	return
 }
 
-// FindAllApplicationUsersBySearchTerm returns all ApplicationUsers
-func (r *RepositoryImpl) FindAllApplicationUsers() (applicationUsers []model.ApplicationUserEntity, err model.TokyError) {
+// FindAllApplicationUsers returns all ApplicationUsers
+func (r *repositoryImpl) FindAllApplicationUsers() (applicationUsers []model.ApplicationUserEntity, err model.TokyError) {
 	findError := r.connection.Find(&applicationUsers).Error
 	if findError == nil {
 		return
@@ -115,7 +124,7 @@ func (r *RepositoryImpl) FindAllApplicationUsers() (applicationUsers []model.App
 }
 
 // FindApplicationUsersByID search multiple application users
-func (r *RepositoryImpl) FindApplicationUsersByID(applicationUserIDs []string) (applicationUsers []model.ApplicationUserEntity, err model.TokyError) {
+func (r *repositoryImpl) FindApplicationUsersByID(applicationUserIDs []string) (applicationUsers []model.ApplicationUserEntity, err model.TokyError) {
 	findError := r.connection.Where("id in (?)", applicationUserIDs).Find(&applicationUsers).Error
 	if findError == nil {
 		return
@@ -129,7 +138,7 @@ func (r *RepositoryImpl) FindApplicationUsersByID(applicationUserIDs []string) (
 }
 
 // FindApplicationUserByID search for a single application user
-func (r *RepositoryImpl) FindApplicationUserByID(applicationUserID string) (applicationUser model.ApplicationUserEntity, err model.TokyError) {
+func (r *repositoryImpl) FindApplicationUserByID(applicationUserID string) (applicationUser model.ApplicationUserEntity, err model.TokyError) {
 	findError := r.connection.Where("id = ?", applicationUserID).First(&applicationUser).Error
 	if findError == nil {
 		return
@@ -141,7 +150,7 @@ func (r *RepositoryImpl) FindApplicationUserByID(applicationUserID string) (appl
 	}
 	return
 }
-func (r *RepositoryImpl) FindAllApplicationUsersByUserName(userName string) (applicationUser model.ApplicationUserEntity, err model.TokyError) {
+func (r *repositoryImpl) FindAllApplicationUsersByUserName(userName string) (applicationUser model.ApplicationUserEntity, err model.TokyError) {
 	findError := r.connection.Where("user_name = ?", userName).First(&applicationUser).Error
 	if findError == nil {
 		return
@@ -154,8 +163,26 @@ func (r *RepositoryImpl) FindAllApplicationUsersByUserName(userName string) (app
 	return
 }
 
+func (r *repositoryImpl) UpdateBookRealm(bookRealmEntity *model.BookRealmEntity) model.TokyError {
+	r.connection.Model(bookRealmEntity).Association("WriteAccess").Replace(bookRealmEntity.WriteAccess)
+	r.connection.Model(bookRealmEntity).Association("ReadAccess").Replace(bookRealmEntity.ReadAccess)
+	updateError := r.connection.Save(bookRealmEntity).Error
+	if updateError != nil {
+		return model.CreateBusinessError("Could not Save Book Realm", updateError)
+	}
+	return nil
+}
+
+func (r *repositoryImpl) UpdateAccount(accountTableEntity *model.AccountTableEntity) model.TokyError {
+	updateError := r.connection.Save(accountTableEntity).Error
+	if updateError != nil {
+		return model.CreateBusinessError("Could not Save Account Entity", updateError)
+	}
+	return nil
+}
+
 // PersistBookRealm Create new incance of a BookRealm
-func (r *RepositoryImpl) PersistBookRealm(bookRealm model.BookRealmEntity) model.TokyError {
+func (r *repositoryImpl) PersistBookRealm(bookRealm model.BookRealmEntity) model.TokyError {
 	saveError := r.connection.Create(&bookRealm).Error
 	if saveError != nil {
 		return model.CreateBusinessError("Could not Persist Book Realm", saveError)
@@ -164,7 +191,7 @@ func (r *RepositoryImpl) PersistBookRealm(bookRealm model.BookRealmEntity) model
 }
 
 // PersistApplicationUser creates new instance of a ApplicationUser
-func (r *RepositoryImpl) PersistApplicationUser(applicationUser model.ApplicationUserEntity) model.TokyError {
+func (r *repositoryImpl) PersistApplicationUser(applicationUser model.ApplicationUserEntity) model.TokyError {
 	saveError := r.connection.Create(&applicationUser).Error
 	if saveError != nil {
 		return model.CreateBusinessError("Could not Persist ApplicationUser", saveError)
@@ -173,15 +200,27 @@ func (r *RepositoryImpl) PersistApplicationUser(applicationUser model.Applicatio
 }
 
 // UpdateApplicationUser creates new instance of a ApplicationUser
-func (r *RepositoryImpl) UpdateApplicationUser(applicationUser model.ApplicationUserEntity) model.TokyError {
+func (r *repositoryImpl) UpdateApplicationUser(applicationUser model.ApplicationUserEntity) model.TokyError {
 	saveError := r.connection.Save(&applicationUser).Error
 	if saveError != nil {
 		return model.CreateBusinessError("Could not Update ApplicationUser", saveError)
 	}
 	return nil
 }
-
-func (r *RepositoryImpl) DeleteUserWithAssociations(userId string) model.TokyError {
+func (r *repositoryImpl) DeleteBookRealmByID(bookingID uint) model.TokyError {
+	tx := r.connection.Begin()
+	deleteErr := deleteUserMapsFromBook(tx, []uint{bookingID})
+	deleteErr = deleteBookingTables(tx, []uint{bookingID})
+	deleteErr = deleteAccountingTables(tx, []uint{bookingID})
+	deleteErr = tx.Where("id = ?", bookingID).Delete(&model.BookRealmEntity{}).Error
+	if deleteErr != nil {
+		tx.Rollback()
+		return model.CreateTechnicalError(fmt.Sprintf("Could not Delete Realm f Id %v", bookingID), deleteErr)
+	}
+	tx.Commit()
+	return nil
+}
+func (r *repositoryImpl) DeleteUserWithAssociations(userId string) model.TokyError {
 	tx := r.connection.Begin()
 	var bookIds []uint
 	tx.Where("owner_id = ?", userId).Find(&model.BookRealmEntity{}).Select("id").Pluck("id", &bookIds)
@@ -194,7 +233,7 @@ func (r *RepositoryImpl) DeleteUserWithAssociations(userId string) model.TokyErr
 
 	if deleteErr != nil {
 		tx.Rollback()
-		return model.CreateTechnicalError(fmt.Sprintf("Could not Delete and Realm for User with Id %v", userId), deleteErr)
+		return model.CreateTechnicalError(fmt.Sprintf("Could not Delete Realm for User with Id %v", userId), deleteErr)
 	}
 	tx.Commit()
 	return nil
@@ -220,7 +259,7 @@ func deleteUser(tx *gorm.DB, userId string) error {
 	return deleteErr
 }
 
-func (r *RepositoryImpl) FindAccountsByBookId(bookId uint) (accountTableEntities []model.AccountTableEntity, err model.TokyError) {
+func (r *repositoryImpl) FindAccountsByBookId(bookId uint) (accountTableEntities []model.AccountTableEntity, err model.TokyError) {
 	findError := r.connection.Where("book_realm_entity_id = ?", bookId).Order("account_name").Find(&accountTableEntities).Error
 	if findError == nil {
 		return
@@ -233,7 +272,7 @@ func (r *RepositoryImpl) FindAccountsByBookId(bookId uint) (accountTableEntities
 	return
 }
 
-func (r *RepositoryImpl) FindRelatedHabenBuchungen(accountTable model.AccountTableEntity) (bookingEntities []model.BookingEntity, err model.TokyError) {
+func (r *repositoryImpl) FindRelatedHabenBuchungen(accountTable model.AccountTableEntity) (bookingEntities []model.BookingEntity, err model.TokyError) {
 	findError := r.connection.Preload("SollBookingAccount").Where("haben_booking_account_id = ?", accountTable.Model.ID).Order("date desc").Find(&bookingEntities).Error
 	if findError == nil {
 		return
@@ -245,7 +284,24 @@ func (r *RepositoryImpl) FindRelatedHabenBuchungen(accountTable model.AccountTab
 	}
 	return
 }
-func (r *RepositoryImpl) FindRelatedSollBuchungen(accountTable model.AccountTableEntity) (bookingEntities []model.BookingEntity, err model.TokyError) {
+
+func (r *repositoryImpl) FindBookingsByBookId(bookID uint) (bookingEntities []model.BookingEntity, err model.TokyError) {
+	findError := r.connection.
+		Joins("LEFT JOIN account_table_entities ate ON ate.id = booking_entities.haben_booking_account_id").
+		Where("ate.book_realm_entity_id = ?", bookID).
+		Group("booking_entities.id, booking_entities.created_at, booking_entities.updated_at, booking_entities.deleted_at, booking_entities.date, booking_entities.haben_booking_account_id, booking_entities.soll_booking_account_id, booking_entities.ammount, booking_entities.description").
+		Order("date desc").Find(&bookingEntities).Error
+	if findError == nil {
+		return
+	}
+	if gorm.ErrRecordNotFound == findError {
+		err = model.CreateBusinessErrorNotFound(fmt.Sprintf("No Accounts for BookId %d found", bookID), findError)
+	} else {
+		err = model.CreateTechnicalError("Unknown Error", findError)
+	}
+	return
+}
+func (r *repositoryImpl) FindRelatedSollBuchungen(accountTable model.AccountTableEntity) (bookingEntities []model.BookingEntity, err model.TokyError) {
 	findError := r.connection.Preload("HabenBookingAccount").Where("soll_booking_account_id = ?", accountTable.Model.ID).Order("date desc").Find(&bookingEntities).Error
 	if findError == nil {
 		return
@@ -258,7 +314,7 @@ func (r *RepositoryImpl) FindRelatedSollBuchungen(accountTable model.AccountTabl
 	return
 }
 
-func (r *RepositoryImpl) CreateAccount(entity model.AccountTableEntity) model.TokyError {
+func (r *repositoryImpl) CreateAccount(entity model.AccountTableEntity) model.TokyError {
 	createAccountError := r.connection.Create(&entity).Error
 	if createAccountError != nil {
 		return model.CreateBusinessError("Could not Create Account", createAccountError)
@@ -266,7 +322,7 @@ func (r *RepositoryImpl) CreateAccount(entity model.AccountTableEntity) model.To
 	return nil
 }
 
-func (r *RepositoryImpl) FindAccountByID(id uint) (accountTable model.AccountTableEntity, err model.TokyError) {
+func (r *repositoryImpl) FindAccountByID(id uint) (accountTable model.AccountTableEntity, err model.TokyError) {
 	findError := r.connection.Where(id).First(&accountTable).Error
 	if findError == nil {
 		return
@@ -278,7 +334,7 @@ func (r *RepositoryImpl) FindAccountByID(id uint) (accountTable model.AccountTab
 	}
 	return
 }
-func (r *RepositoryImpl) PersistBooking(entity model.BookingEntity) model.TokyError {
+func (r *repositoryImpl) PersistBooking(entity model.BookingEntity) model.TokyError {
 	createBookingError := r.connection.Create(&entity).Error
 	if createBookingError != nil {
 		return model.CreateBusinessError("Could not Create Booking", createBookingError)

@@ -9,11 +9,11 @@ type ApplicationUserDTO struct {
 }
 
 type BookRealmDTO struct {
-	BookID      string   `json:"bookId"`
-	BookName    string   `json:"bookName"`
-	Owner       string   `json:"owner"`
-	WriteAccess []string `json:"writeAccess"`
-	ReadAccess  []string `json:"readAccess"`
+	BookID      string               `json:"bookId"`
+	BookName    string               `json:"bookName"`
+	Owner       ApplicationUserDTO   `json:"owner"`
+	WriteAccess []ApplicationUserDTO `json:"writeAccess"`
+	ReadAccess  []ApplicationUserDTO `json:"readAccess"`
 }
 
 type AccountTableDTO struct {
