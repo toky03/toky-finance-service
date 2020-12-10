@@ -1,5 +1,10 @@
 package model
 
+import (
+	"strings"
+	"time"
+)
+
 type ApplicationUserDTO struct {
 	UserID    string `json:"userId"`
 	UserName  string `json:"userName"`
@@ -39,7 +44,7 @@ type TableBookingDTO struct {
 
 type AccountOptionDTO struct {
 	AccountName  string `json:"accountName"`
-	Id           string `json:"id"`
+	Id           string `json:"accountId"`
 	Type         string `json:"type"`
 	Category     string `json:"category"`
 	Description  string `json:"description"`
@@ -48,6 +53,7 @@ type AccountOptionDTO struct {
 }
 
 type BookingDTO struct {
+	BookingID    string `json:"bookingId"`
 	SollAccount  string `json:"sollAccount"`
 	HabenAccount string `json:"habenAccount"`
 	Description  string `json:"description"`
@@ -77,6 +83,15 @@ type IncomeStatement struct {
 type ClosingStatementEntry struct {
 	Name    string `json:"name"`
 	Ammount string `json:"ammount"`
+}
+
+func (booking BookingDTO) ReadDateFormatted() (date string) {
+	if strings.TrimSpace(booking.Date) == "" {
+		date = time.Now().Format(time.RFC3339)
+	} else {
+		date = strings.TrimSpace(booking.Date)
+	}
+	return
 }
 
 func (account AccountOptionDTO) ToAccountTableDTO(bookingEntity BookRealmEntity) AccountTableEntity {

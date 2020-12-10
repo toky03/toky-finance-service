@@ -6,8 +6,6 @@ import (
 	"math"
 	"sort"
 	"strconv"
-	"strings"
-	"time"
 
 	"github.com/toky03/toky-finance-accounting-service/bookingutils"
 	"github.com/toky03/toky-finance-accounting-service/model"
@@ -20,10 +18,14 @@ type AccontingRepository interface {
 	FindRelatedSollBuchungen(model.AccountTableEntity) ([]model.BookingEntity, model.TokyError)
 	CreateAccount(entity model.AccountTableEntity) model.TokyError
 	UpdateAccount(entity *model.AccountTableEntity) model.TokyError
+	DeleteAccount(entity *model.AccountTableEntity) model.TokyError
 	FindAccountByID(id uint) (model.AccountTableEntity, model.TokyError)
 	PersistBooking(entity model.BookingEntity) model.TokyError
+	UpdateBooking(entity *model.BookingEntity) model.TokyError
+	DeleteBooking(entity *model.BookingEntity) model.TokyError
 	FindBookRealmByID(id uint) (model.BookRealmEntity, model.TokyError)
 	FindBookingsByBookId(uint) ([]model.BookingEntity, model.TokyError)
+	FindBookingByID(uint) (model.BookingEntity, model.TokyError)
 }
 type accountingServiceImpl struct {
 	AccountingRepository AccontingRepository
@@ -226,21 +228,37 @@ func (s *accountingServiceImpl) CreateAccount(bookID string, account model.Accou
 }
 
 func (s *accountingServiceImpl) UpdateAccount(accountID string, account model.AccountOptionDTO) model.TokyError {
-	accountIDUint, err := bookingutils.StringToUint(accountID)
-	if err != nil {
-		return model.CreateBusinessError(fmt.Sprintf("Could not convert account Id: %s", accountIDUint), err)
-	}
 	if valid, err := validateAccount(account); !valid {
 		return err
 	}
-	accountEntity, repoErr := s.AccountingRepository.FindAccountByID(accountIDUint)
-	if model.IsExisting(repoErr) {
-		return model.CreateBusinessError(fmt.Sprintf("Could not read Account with id %s", accountID), repoErr.Error())
+	accountEntity, accountReadError := s.readAccountById(accountID)
+	if model.IsExisting(accountReadError) {
+		return accountReadError
 	}
 	mergeAccount(&accountEntity, account)
 
 	return s.AccountingRepository.UpdateAccount(&accountEntity)
+}
 
+func (s *accountingServiceImpl) readAccountById(accountID string) (model.AccountTableEntity, model.TokyError) {
+	accountIDUint, err := bookingutils.StringToUint(accountID)
+	if err != nil {
+		return model.AccountTableEntity{}, model.CreateBusinessError(fmt.Sprintf("Could not convert account Id: %s", accountIDUint), err)
+	}
+
+	accountEntity, repoErr := s.AccountingRepository.FindAccountByID(accountIDUint)
+	if model.IsExisting(repoErr) {
+		return model.AccountTableEntity{}, model.CreateBusinessError(fmt.Sprintf("Could not read Account with id %s", accountID), repoErr.Error())
+	}
+	return accountEntity, nil
+}
+
+func (s *accountingServiceImpl) DeleteAccount(accountID string) model.TokyError {
+	accountEntity, accountReadError := s.readAccountById(accountID)
+	if model.IsExisting(accountReadError) {
+		return accountReadError
+	}
+	return s.AccountingRepository.DeleteAccount(&accountEntity)
 }
 
 func mergeAccount(accountEntity *model.AccountTableEntity, account model.AccountOptionDTO) {
@@ -257,36 +275,82 @@ func (s *accountingServiceImpl) CreateBooking(booking model.BookingDTO) model.To
 	if model.IsExisting(err) {
 		return err
 	}
-	var date string
-	if strings.TrimSpace(booking.Date) == "" {
-		date = time.Now().Format(time.RFC3339)
-	} else {
-		date = strings.TrimSpace(booking.Date)
+
+	sollBookingAccount, readErr := s.readAccountFromBooking(booking.SollAccount)
+	if model.IsExisting(readErr) {
+		return readErr
 	}
-	sollAccountID, formatError := bookingutils.StringToUint(booking.SollAccount)
-	if formatError != nil {
-		return model.CreateBusinessValidationError(fmt.Sprintf("Could not format SollAccount Id %s as AccountId", booking.SollAccount), formatError)
+	habenBookingAccount, readErr := s.readAccountFromBooking(booking.HabenAccount)
+	if model.IsExisting(readErr) {
+		return readErr
 	}
-	habenAccountID, formatError := bookingutils.StringToUint(booking.HabenAccount)
-	if formatError != nil {
-		return model.CreateBusinessValidationError(fmt.Sprintf("Could not format HabenAccount Id %s as AccountId", booking.SollAccount), formatError)
-	}
-	sollBookingAccount, repoError := s.AccountingRepository.FindAccountByID(sollAccountID)
-	if model.IsExisting(repoError) {
-		return repoError
-	}
-	habenBookingAccount, repoError := s.AccountingRepository.FindAccountByID(habenAccountID)
-	if model.IsExisting(repoError) {
-		return repoError
-	}
+
 	bookingEntity := model.BookingEntity{
-		Date:                date,
+		Date:                booking.ReadDateFormatted(),
 		HabenBookingAccount: habenBookingAccount,
 		SollBookingAccount:  sollBookingAccount,
 		Ammount:             booking.Ammount,
 		Description:         booking.Description,
 	}
 	return s.AccountingRepository.PersistBooking(bookingEntity)
+}
+
+func (s *accountingServiceImpl) readAccountFromBooking(accountId string) (model.AccountTableEntity, model.TokyError) {
+	accountIDUint, formatError := bookingutils.StringToUint(accountId)
+	if formatError != nil {
+		return model.AccountTableEntity{}, model.CreateBusinessValidationError(fmt.Sprintf("Could not format Account Id %s as AccountId", accountId), formatError)
+	}
+	return s.AccountingRepository.FindAccountByID(accountIDUint)
+
+}
+func (s *accountingServiceImpl) readBookingByID(bookingID string) (model.BookingEntity, model.TokyError) {
+	bookingIDUint, err := bookingutils.StringToUint(bookingID)
+	if err != nil {
+		return model.BookingEntity{}, model.CreateBusinessError(fmt.Sprintf("Could not convert booking Id: %s", bookingID), err)
+	}
+
+	bookingEntity, repoErr := s.AccountingRepository.FindBookingByID(bookingIDUint)
+	if model.IsExisting(repoErr) {
+		return model.BookingEntity{}, model.CreateBusinessError(fmt.Sprintf("Could not read Account with id %s", bookingID), repoErr.Error())
+	}
+	return bookingEntity, nil
+}
+func (s *accountingServiceImpl) UpdateBooking(bookingID string, booking model.BookingDTO) model.TokyError {
+	validationError := validateBooking(booking)
+	if model.IsExisting(validationError) {
+		return validationError
+	}
+	bookingEntity, readError := s.readBookingByID(bookingID)
+	if model.IsExisting(readError) {
+		return readError
+	}
+	if booking.HabenAccount != bookingutils.UintToString(bookingEntity.HabenBookingAccountID) {
+		habenAccount, readErr := s.readAccountFromBooking(booking.HabenAccount)
+		if model.IsExisting(readErr) {
+			return readErr
+		}
+		bookingEntity.HabenBookingAccount = habenAccount
+	}
+	if booking.SollAccount != bookingutils.UintToString(bookingEntity.SollBookingAccountID) {
+		sollAccount, readErr := s.readAccountFromBooking(booking.SollAccount)
+		if model.IsExisting(readErr) {
+			return readErr
+		}
+		bookingEntity.SollBookingAccount = sollAccount
+	}
+	bookingEntity.Date = booking.ReadDateFormatted()
+	bookingEntity.Description = booking.Description
+	bookingEntity.Ammount = booking.Ammount
+	return s.AccountingRepository.UpdateBooking(&bookingEntity)
+
+}
+
+func (s *accountingServiceImpl) DeleteBooking(bookingID string) model.TokyError {
+	bookingEntity, readError := s.readBookingByID(bookingID)
+	if model.IsExisting(readError) {
+		return readError
+	}
+	return s.AccountingRepository.DeleteBooking(&bookingEntity)
 }
 
 func concatenateSorted(sollBuchungen, habenBuchungen []model.TableBookingDTO) []model.TableBookingDTO {

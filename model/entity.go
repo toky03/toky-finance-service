@@ -88,6 +88,7 @@ func (bookingEntity BookingEntity) ToBookingDTO() BookingDTO {
 		Description:  bookingEntity.Description,
 		HabenAccount: bookingutils.UintToString(bookingEntity.HabenBookingAccountID),
 		SollAccount:  bookingutils.UintToString(bookingEntity.SollBookingAccountID),
+		BookingID:    bookingutils.UintToString(bookingEntity.ID),
 	}
 }
 

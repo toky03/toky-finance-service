@@ -181,6 +181,14 @@ func (r *repositoryImpl) UpdateAccount(accountTableEntity *model.AccountTableEnt
 	return nil
 }
 
+func (r *repositoryImpl) UpdateBooking(bookingEntity *model.BookingEntity) model.TokyError {
+	updateError := r.connection.Save(bookingEntity).Error
+	if updateError != nil {
+		return model.CreateBusinessError("Could not Save Booking Entity", updateError)
+	}
+	return nil
+}
+
 // PersistBookRealm Create new incance of a BookRealm
 func (r *repositoryImpl) PersistBookRealm(bookRealm model.BookRealmEntity) model.TokyError {
 	saveError := r.connection.Create(&bookRealm).Error
@@ -207,15 +215,15 @@ func (r *repositoryImpl) UpdateApplicationUser(applicationUser model.Application
 	}
 	return nil
 }
-func (r *repositoryImpl) DeleteBookRealmByID(bookingID uint) model.TokyError {
+func (r *repositoryImpl) DeleteBookRealmByID(bookID uint) model.TokyError {
 	tx := r.connection.Begin()
-	deleteErr := deleteUserMapsFromBook(tx, []uint{bookingID})
-	deleteErr = deleteBookingTables(tx, []uint{bookingID})
-	deleteErr = deleteAccountingTables(tx, []uint{bookingID})
-	deleteErr = tx.Where("id = ?", bookingID).Delete(&model.BookRealmEntity{}).Error
+	deleteErr := deleteUserMapsFromBook(tx, []uint{bookID})
+	deleteErr = deleteBookingTables(tx, []uint{bookID})
+	deleteErr = deleteAccountingTables(tx, []uint{bookID})
+	deleteErr = tx.Where("id = ?", bookID).Delete(&model.BookRealmEntity{}).Error
 	if deleteErr != nil {
 		tx.Rollback()
-		return model.CreateTechnicalError(fmt.Sprintf("Could not Delete Realm f Id %v", bookingID), deleteErr)
+		return model.CreateTechnicalError(fmt.Sprintf("Could not Delete Realm f Id %v", bookID), deleteErr)
 	}
 	tx.Commit()
 	return nil
@@ -240,6 +248,22 @@ func (r *repositoryImpl) DeleteUserWithAssociations(userId string) model.TokyErr
 }
 func deleteBookingTables(tx *gorm.DB, bookIds []uint) error {
 	return tx.Exec("DELETE from booking_entities where haben_booking_account_id in (select id from account_table_entities where book_realm_entity_id in (@bookIds))", sql.Named("bookIds", bookIds)).Error
+}
+
+func (r *repositoryImpl) DeleteAccount(accountEntity *model.AccountTableEntity) model.TokyError {
+	deleteError := r.connection.Delete(accountEntity).Error
+	if deleteError != nil {
+		return model.CreateTechnicalError("Could not Delte Account", deleteError)
+	}
+	return nil
+}
+
+func (r *repositoryImpl) DeleteBooking(booking *model.BookingEntity) model.TokyError {
+	deleteError := r.connection.Delete(booking).Error
+	if deleteError != nil {
+		return model.CreateTechnicalError("Could not Delte Booking", deleteError)
+	}
+	return nil
 }
 
 func deleteAccountingTables(tx *gorm.DB, bookbookIds []uint) error {
@@ -298,6 +322,19 @@ func (r *repositoryImpl) FindBookingsByBookId(bookID uint) (bookingEntities []mo
 		err = model.CreateBusinessErrorNotFound(fmt.Sprintf("No Accounts for BookId %d found", bookID), findError)
 	} else {
 		err = model.CreateTechnicalError("Unknown Error", findError)
+	}
+	return
+}
+
+func (r *repositoryImpl) FindBookingByID(bookingID uint) (bookingEntity model.BookingEntity, err model.TokyError) {
+	findErr := r.connection.Where(bookingID).First(&bookingEntity).Error
+	if findErr == nil {
+		return
+	}
+	if gorm.ErrRecordNotFound == findErr {
+		err = model.CreateBusinessErrorNotFound(fmt.Sprintf("No Booking with Id %v found", bookingID), findErr)
+	} else {
+		err = model.CreateTechnicalError("Unknown Error", findErr)
 	}
 	return
 }
