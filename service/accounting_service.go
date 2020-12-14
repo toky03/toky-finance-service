@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -54,6 +55,19 @@ func (s *accountingServiceImpl) ReadAccountOptionsFromBook(bookId string) ([]mod
 	}
 
 	return accountOptionDTOs, nil
+}
+
+func (s *accountingServiceImpl) ReadBookIdFromAccount(accountId string) (string, model.TokyError) {
+	accountingEntity, err := s.readAccountById(accountId)
+	bookID := bookingutils.UintToString(accountingEntity.BookRealmEntityID)
+	return bookID, err
+}
+func (s *accountingServiceImpl) ReadBookIdFromBooking(bookingId string) (string, model.TokyError) {
+	bookingEntity, err := s.readBookingByID(bookingId)
+	if model.IsExisting(err) {
+		return "", err
+	}
+	return s.ReadBookIdFromAccount(bookingutils.UintToString(bookingEntity.HabenBookingAccountID))
 }
 
 func (s *accountingServiceImpl) ReadClosingStatements(bookId string) (model.ClosingSheetStatements, model.TokyError) {
@@ -257,6 +271,14 @@ func (s *accountingServiceImpl) DeleteAccount(accountID string) model.TokyError 
 	accountEntity, accountReadError := s.readAccountById(accountID)
 	if model.IsExisting(accountReadError) {
 		return accountReadError
+	}
+	sollBuchungen, err := s.AccountingRepository.FindRelatedSollBuchungen(accountEntity)
+	if model.IsExisting(err) && !model.IsExistingNotFoundError(err) {
+		log.Println(err)
+		return err
+	}
+	if len(sollBuchungen) > 0 {
+		return model.CreateBusinessError("Konto hat Buchungen und kann deswegen nicht gelöscht werden", errors.New("Account has Bookings"))
 	}
 	return s.AccountingRepository.DeleteAccount(&accountEntity)
 }

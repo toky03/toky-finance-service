@@ -1,8 +1,9 @@
 package handler
 
 import (
-	"github.com/toky03/toky-finance-accounting-service/model"
 	"net/http"
+
+	"github.com/toky03/toky-finance-accounting-service/model"
 )
 
 func handleError(error model.TokyError, w http.ResponseWriter) {
@@ -19,6 +20,11 @@ func handleError(error model.TokyError, w http.ResponseWriter) {
 	}
 	if model.IsExistingValidationError(error) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
+		w.Write([]byte(error.ErrorMessage()))
+		return
+	}
+	if model.IsExistingBuisnessError(error) {
+		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(error.ErrorMessage()))
 		return
 	}

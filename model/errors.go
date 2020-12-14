@@ -61,6 +61,9 @@ func IsExistingNotFoundError(err TokyError) bool {
 func IsExistingValidationError(err TokyError) bool {
 	return err != nil && err.ErrorType() == "ValidationError"
 }
+func IsExistingBuisnessError(err TokyError) bool {
+	return err != nil && err.ErrorType() == "BusinessError"
+}
 
 func (e TechnicalError) IsTechnicalError() bool {
 	return true

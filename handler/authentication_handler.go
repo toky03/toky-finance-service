@@ -15,12 +15,17 @@ import (
 	"github.com/toky03/toky-finance-accounting-service/service"
 )
 
-type AuthenticationHandlerImpl struct {
-	userService    userService
-	jwtAuthService jwtauthhandler.JwtHandler
+type accountingService interface {
+	ReadBookIdFromAccount(accountId string) (string, model.TokyError)
+	ReadBookIdFromBooking(bookingId string) (string, model.TokyError)
+}
+type authenticationHandlerImpl struct {
+	userService       userService
+	accountingService accountingService
+	jwtAuthService    jwtauthhandler.JwtHandler
 }
 
-func CreateAuthenticationHandler() *AuthenticationHandlerImpl {
+func CreateAuthenticationHandler() *authenticationHandlerImpl {
 	openIDProvider := os.Getenv("OPENID_JWKS_URL")
 	if openIDProvider == "" {
 		panic("OPENID_JWKS URL must be provided")
@@ -29,20 +34,40 @@ func CreateAuthenticationHandler() *AuthenticationHandlerImpl {
 	if err != nil {
 		panic("jwt Handler could not have been initialized")
 	}
-	return &AuthenticationHandlerImpl{
-		userService:    service.CreateApplicationUserService(),
-		jwtAuthService: jwtHandler,
+	return &authenticationHandlerImpl{
+		userService:       service.CreateApplicationUserService(),
+		accountingService: service.CreateAccountingService(),
+		jwtAuthService:    jwtHandler,
 	}
 }
 
-func (h *AuthenticationHandlerImpl) HasWritePermissions(next http.Handler) http.Handler {
+func (h *authenticationHandlerImpl) HasWritePermissions(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userId := context.Get(r, "user-id")
 		if userId == "" {
 			return
 		}
+		var err model.TokyError
 		vars := mux.Vars(r)
 		bookID := vars["bookID"]
+		accountID := vars["accountID"]
+		bookingID := vars["bookingID"]
+		if accountID != "" && bookingID == "" {
+			bookID, err = h.accountingService.ReadBookIdFromAccount(accountID)
+			if model.IsExisting(err) {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("Could not Read Book Id from account Id %s"))
+				return
+			}
+
+		} else if bookingID != "" {
+			bookID, err = h.accountingService.ReadBookIdFromBooking(bookingID)
+			if model.IsExisting(err) {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("Could not Read Book Id from booking Id"))
+				return
+			}
+		}
 		isPermitted, err := h.userService.HasWriteAccessFromBook(userId.(string), bookID)
 		if model.IsExisting(err) {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -62,7 +87,7 @@ func (h *AuthenticationHandlerImpl) HasWritePermissions(next http.Handler) http.
 
 }
 
-func (h *AuthenticationHandlerImpl) IsOwner(next http.Handler) http.Handler {
+func (h *authenticationHandlerImpl) IsOwner(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userId := context.Get(r, "user-id")
 		if userId == "" {
@@ -88,7 +113,7 @@ func (h *AuthenticationHandlerImpl) IsOwner(next http.Handler) http.Handler {
 	})
 }
 
-func (h *AuthenticationHandlerImpl) AuthenticationMiddleware(next http.Handler) http.Handler {
+func (h *authenticationHandlerImpl) AuthenticationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := strings.Split(r.Header.Get("Authorization"), "Bearer ")
 		if len(authHeader) != 2 {
