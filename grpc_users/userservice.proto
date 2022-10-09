@@ -3,6 +3,9 @@ syntax = "proto3";
 
 package grpc_users;
 
+option go_package = ".";
+
+
 message User {
   string id = 1;
   string username = 2;

@@ -17,10 +17,10 @@ services:
             POSTGRES_PASSWORD: kc_password
 
     keycloak-service:
-        image: toky03/keycloak
+        image: quay.io/keycloak/keycloak
         environment: 
-            - KEYCLOAK_USER=admin
-            - KEYCLOAK_PASSWORD=admin
+            - KEYCLOAK_ADMIN=admin
+            - KEYCLOAK_ADMIN_PASSWORD=admin
             - DB_VENDOR=postgres
             - DB_ADDR=postgres
             - DB_DATABASE=keycloak_db
@@ -31,6 +31,8 @@ services:
         ports: 
             - 8080:8080
         volumes: 
-            - ./custom-theme:/opt/jboss/keycloak/themes/toky-keycloak-theme
+            - ./custom-theme:/opt/keycloak/themes/toky-keycloak-theme
+            - ./config:/opt/keycloak/data/import
         depends_on: 
             - postgres
+        command: ['start-dev --import-realm']

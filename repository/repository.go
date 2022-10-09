@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/toky03/toky-finance-accounting-service/model"
 	"gorm.io/driver/postgres"
@@ -15,7 +17,18 @@ type repositoryImpl struct {
 	connection *gorm.DB
 }
 
+var once sync.Once
+
+var repository *repositoryImpl = nil
+
 func CreateRepository() *repositoryImpl {
+	once.Do(func() {
+		repository = instantiate()
+	})
+	return repository
+}
+
+func instantiate() *repositoryImpl {
 	username := os.Getenv("DB_USER")
 	if username == "" {
 		username = "tokyuser"
@@ -33,12 +46,26 @@ func CreateRepository() *repositoryImpl {
 		dbHost = "localhost"
 	}
 
-	dbURI := fmt.Sprintf("host=%s user=%s dbname=%s sslmode=disable password=%s", dbHost, username, dbName, password)
+	dbPort := os.Getenv("DB_PORT")
+	if dbPort == "" {
+		dbPort = "5432"
+	}
+	var retries = 10
 
+	dbURI := fmt.Sprintf("host=%s user=%s dbname=%s port=%s sslmode=disable password=%s connect_timeout=5", dbHost, username, dbName, dbPort, password)
 	conn, err := gorm.Open(postgres.Open(dbURI), &gorm.Config{})
-	if err != nil {
+	for err != nil {
+		log.Printf("Failed to connect to db with error: [%s] retries left: (%d)", err, retries)
+		if retries > 1 {
+			retries--
+			time.Sleep(10 * time.Second)
+			conn, err = gorm.Open(postgres.Open(dbURI), &gorm.Config{})
+			continue
+		}
 		panic(err)
 	}
+
+	log.Println("Successfully connected to DB")
 
 	if err := conn.AutoMigrate(&model.ApplicationUserEntity{}, &model.BookRealmEntity{}, &model.AccountTableEntity{}, &model.BookingEntity{}); err != nil {
 		log.Printf("Error with Automigrate: %v", err)
@@ -60,9 +87,9 @@ func (r *repositoryImpl) GetOpenConnections() int {
 func (r *repositoryImpl) FindAllBookRealmsCorrespondingToUser(userId string) (bookRealms []model.BookRealmEntity, err model.TokyError) {
 
 	findError := r.connection.Preload("Owner").Preload("WriteAccess.ApplicationUserEntity").Preload("ReadAccess.ApplicationUserEntity").
-		Joins("LEFT JOIN map_read_accesses mra on book_realm_entities.id = mra.book_realm_entity_id").
+		Joins("LEFT JOIN map_read_access mra on book_realm_entities.id = mra.book_realm_entity_id").
 		Joins("LEFT JOIN read_application_user_wrappers arw ON arw.id = mra.read_application_user_wrapper_id").
-		Joins("LEFT JOIN map_write_accesses mwa on book_realm_entities.id = mwa.book_realm_entity_id").
+		Joins("LEFT JOIN map_write_access mwa on book_realm_entities.id = mwa.book_realm_entity_id").
 		Joins("LEFT JOIN write_application_user_wrappers aww ON aww.id = mwa.write_application_user_wrapper_id").
 		Where("owner_id = @userId or arw.application_user_entity_id = @userId or aww.application_user_entity_id = @userId", sql.Named("userId", userId)).
 		Group("book_realm_entities.id, book_realm_entities.created_at, book_realm_entities.updated_at, book_realm_entities.deleted_at, book_realm_entities.book_name,book_realm_entities.owner_id").
@@ -270,14 +297,14 @@ func deleteAccountingTables(tx *gorm.DB, bookbookIds []uint) error {
 	return tx.Exec("DELETE from account_table_entities where book_realm_entity_id in (@bookIds) ", sql.Named("bookIds", bookbookIds)).Error
 }
 func deleteUserMapsFromBook(tx *gorm.DB, bookIds []uint) error {
-	deleteErr := tx.Exec("DELETE FROM map_write_accesses WHERE book_realm_entity_id in (@bookIds)", sql.Named("bookIds", bookIds)).Error
-	deleteErr = tx.Exec("DELETE FROM map_read_accesses WHERE book_realm_entity_id in (@bookIds)", sql.Named("bookIds", bookIds)).Error
+	deleteErr := tx.Exec("DELETE FROM map_write_access WHERE book_realm_entity_id in (@bookIds)", sql.Named("bookIds", bookIds)).Error
+	deleteErr = tx.Exec("DELETE FROM map_read_access WHERE book_realm_entity_id in (@bookIds)", sql.Named("bookIds", bookIds)).Error
 	return deleteErr
 }
 
 func deleteUser(tx *gorm.DB, userId string) error {
-	deleteErr := tx.Debug().Exec("DELETE FROM map_write_accesses WHERE write_application_user_wrapper_id in (select id from write_application_user_wrappers where application_user_entity_id = @userId)", sql.Named("userId", userId)).Error
-	deleteErr = tx.Debug().Exec("DELETE FROM map_read_accesses WHERE read_application_user_wrapper_id in (select id from read_application_user_wrappers where application_user_entity_id = @userId)", sql.Named("userId", userId)).Error
+	deleteErr := tx.Debug().Exec("DELETE FROM map_write_access WHERE write_application_user_wrapper_id in (select id from write_application_user_wrappers where application_user_entity_id = @userId)", sql.Named("userId", userId)).Error
+	deleteErr = tx.Debug().Exec("DELETE FROM map_read_access WHERE read_application_user_wrapper_id in (select id from read_application_user_wrappers where application_user_entity_id = @userId)", sql.Named("userId", userId)).Error
 	deleteErr = tx.Debug().Where("application_user_entity_id = ?", userId).Delete(&model.WriteApplicationUserWrapper{}).Error
 	deleteErr = tx.Debug().Where("application_user_entity_id = ?", userId).Delete(&model.ReadApplicationUserWrapper{}).Error
 	return deleteErr

@@ -7,6 +7,8 @@
 - DB_PORT
 - USER_BATCH_PORT
 - OPENID_JWKS_URL
+- ID_PROVIDER_CLIENT_SECRET can be found in keycloack under Clients > Client details > Credentials
+- OPENID_JWKS_EXTERNAL_URL optional if not set it will be the same as OPENID_JWKS_URL
 #### build browser nginx
 `docker build  -t toky03/simpleaccounting-backend .`
 
@@ -15,6 +17,6 @@
 `export GO111MODULE=on`
 `export PATH="$PATH:$(go env GOPATH)/bin"`
 
-### Generate the code
-`protoc -I grpc_users/ grpc_users/userservice.proto --go_out=plugins=grpc:grpc_users`
+### Generate the code from withing grpc_users directory
+`protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative userservice.proto                            `
 

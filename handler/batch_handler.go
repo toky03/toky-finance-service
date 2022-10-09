@@ -24,6 +24,7 @@ type userServiceBatch interface {
 type UserServiceServerImpl struct {
 	cachedUsers *grpc_users.GetUsersResponse
 	userService userServiceBatch
+	grpc_users.UnimplementedUserServiceServer
 }
 
 func CreateAndRegisterUserBatchService() error {

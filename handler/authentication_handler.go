@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -20,9 +21,12 @@ type accountingService interface {
 	ReadBookIdFromBooking(bookingId string) (string, model.TokyError)
 }
 type authenticationHandlerImpl struct {
-	userService       userService
-	accountingService accountingService
-	jwtAuthService    jwtauthhandler.JwtHandler
+	userService        userService
+	accountingService  accountingService
+	jwtAuthService     jwtauthhandler.JwtHandler
+	openIDBaseUrl      string
+	openIDClientSecret string
+	openIDClientID     string
 }
 
 func CreateAuthenticationHandler() *authenticationHandlerImpl {
@@ -30,15 +34,51 @@ func CreateAuthenticationHandler() *authenticationHandlerImpl {
 	if openIDProvider == "" {
 		panic("OPENID_JWKS URL must be provided")
 	}
-	jwtHandler, err := jwtauthhandler.CreateJwtHandler(openIDProvider)
+	var externalOpenIDProvider string
+	if os.Getenv("OPENID_JWKS_EXTERNAL_URL") != "" {
+		externalOpenIDProvider = os.Getenv("OPENID_JWKS_EXTERNAL_URL")
+	} else {
+		externalOpenIDProvider = openIDProvider
+	}
+	openIDClientSecret := os.Getenv("ID_PROVIDER_CLIENT_SECRET")
+	if openIDClientSecret == "" {
+		panic("ID_PROVIDER_CLIENT_SECRET URL must be provided")
+	}
+	openIDClientId := os.Getenv("ID_PROVIDER_CLIENT_ID")
+	if openIDClientId == "" {
+		panic("ID_PROVIDER_CLIENT_ID URL must be provided")
+	}
+
+	jwtHandler, err := jwtauthhandler.CreateJwtHandler(openIDProvider + "/certs")
 	if err != nil {
 		panic("jwt Handler could not have been initialized")
 	}
 	return &authenticationHandlerImpl{
-		userService:       service.CreateApplicationUserService(),
-		accountingService: service.CreateAccountingService(),
-		jwtAuthService:    jwtHandler,
+		userService:        service.CreateApplicationUserService(),
+		accountingService:  service.CreateAccountingService(),
+		jwtAuthService:     jwtHandler,
+		openIDBaseUrl:      externalOpenIDProvider,
+		openIDClientSecret: openIDClientSecret,
+		openIDClientID:     openIDClientId,
 	}
+}
+
+func (h *authenticationHandlerImpl) JwksUrl(w http.ResponseWriter, r *http.Request) {
+
+	loginInformation := model.LoginInformationDto{
+		AuthUrl:      h.openIDBaseUrl + "/token",
+		ClientSecret: h.openIDClientSecret,
+		ClientId:     h.openIDClientID,
+	}
+
+	js, marshalError := json.Marshal(loginInformation)
+	if marshalError != nil {
+		http.Error(w, marshalError.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
+	return
 }
 
 func (h *authenticationHandlerImpl) HasWritePermissions(next http.Handler) http.Handler {
@@ -128,11 +168,13 @@ func (h *authenticationHandlerImpl) AuthenticationMiddleware(next http.Handler) 
 			for _, rsaKey := range rsaKeys {
 				token, errParse := jwt.ParseWithClaims(jwtToken, claims, func(token *jwt.Token) (interface{}, error) {
 					if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+						fmt.Printf("signing method not expected\n")
 						return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 					}
 					return &rsaKey, nil
 				})
 				if token.Valid {
+					err = nil
 					break
 				} else {
 					err = errParse
@@ -140,7 +182,6 @@ func (h *authenticationHandlerImpl) AuthenticationMiddleware(next http.Handler) 
 			}
 			if err != nil {
 				log.Printf("Error %v \n", err)
-				log.Printf("token %v", jwtToken)
 				w.WriteHeader(http.StatusUnauthorized)
 				w.Write([]byte("Invalid Token"))
 				return

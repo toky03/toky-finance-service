@@ -1,12 +1,20 @@
 version: '3'
 
 volumes:
-    postgres_data:
+    finance_data:
+        driver: local
+    keycloak_data:
         driver: local
     theme:
         driver: local
 
 services:
+    financedb:
+        image: postgres:14-alpine
+        environment: 
+            - POSTGRES_DB=tokyfinance
+            - POSTGRES_PASSWORD=pwd
+            - POSTGRES_USER=tokyuser
     toky-finance-service:
         build: .
         ports:
@@ -17,32 +25,61 @@ services:
             - DB_PASS=pwd
             - DB_USER=tokyuser
             - DB_TYPE=postgres
-            - DB_HOST=localhost
+            - DB_HOST=financedb
             - DB_PORT=5432
             - USER_BATCH_PORT=3003
-            - OPENID_JWKS_URL=http://localhost:8080/auth/realms/toky-finance/protocol/openid-connect/certs
-            - USER_BATCH_TRIGGER_ENDPOINT=http://localhost:3005/triggerBatchRun
-        network_mode: "host"
+            - OPENID_JWKS_URL=http://keycloak-service:8080/realms/SimpleAccounting/protocol/openid-connect
+            - OPENID_JWKS_EXTERNAL_URL=http://localhost:8080/realms/SimpleAccounting/protocol/openid-connect
+            - USER_BATCH_TRIGGER_ENDPOINT=http://user-batch:3005/triggerBatchRun
+            - ID_PROVIDER_CLIENT_SECRET=PcmHZhknfDoEsOvkYDpejvmrdL3yW41A
+            - ID_PROVIDER_CLIENT_ID=toky-accounting
+        depends_on:
+            - keycloak-service
+            - financedb
     user-batch:
-        image: toky03/user-batch:0.1.2
+        image: toky03/user-batch:0.3.1
         environment:
             - REST_PORT=3005
             - INTERVAL_SECONDS=10
-            - ID_PROVIDER_ENDPOINT=http://localhost:8080/auth/admin/realms/toky-finance/users
-            - ACCOUNTING_SERVER_ENDPOINT=localhost:3003
-            - ID_PROVIDER_TOKEN_ENDPOINT=http://localhost:8080/auth/realms/toky-finance/protocol/openid-connect/token
+            - ID_PROVIDER_ENDPOINT=http://keycloak-service:8080/admin/realms/SimpleAccounting/users
+            - ACCOUNTING_SERVER_ENDPOINT=toky-finance-service:3003
+            - ID_PROVIDER_TOKEN_ENDPOINT=http://keycloak-service:8080/realms/SimpleAccounting/protocol/openid-connect/token
             - ID_PROVIDER_USERNAME=finance-service
             - ID_PROVIDER_PASSWORD=admin
-            - ID_PROVIDER_CLIENT_SECRET=46dd09e3-19f6-457d-8ec3-0ea0264cefde
-            - ID_PROVIDER_CLIENT_ID=toky-finance-service
+            - ID_PROVIDER_CLIENT_SECRET=PcmHZhknfDoEsOvkYDpejvmrdL3yW41A
+            - ID_PROVIDER_CLIENT_ID=toky-accounting
         depends_on:
             - toky-finance-service
-        network_mode: "host"
-#     finance-db:
-#         image: postgres:9.6
-# #        ports:
-#         #- "5454:5432"
-#         environment: 
-#             - POSTGRES_DB=tokyfinance
-#             - POSTGRES_PASSWORD=pwd
-#             - POSTGRES_USER=tokyuser
+        ports:
+            - "3005:3005"
+    keycloak-db:
+        image: postgres
+        volumes:
+            - keycloak_data:/var/lib/postgresql/data
+        environment:
+            POSTGRES_DB: keycloak_db
+            POSTGRES_USER: kc_user
+            POSTGRES_PASSWORD: kc_password
+    keycloak-service:
+        image: quay.io/keycloak/keycloak
+        environment: 
+            - KEYCLOAK_ADMIN=admin
+            - KEYCLOAK_ADMIN_PASSWORD=admin
+            - KC_DB=postgres
+            - KC_DB_USERNAME=kc_user
+            - DB_SCHEMA=public
+            - KC_DB_PASSWORD=kc_password
+            - PROXY_ADDRESS_FORWARDING=true
+            - KC_DB_SCHEMA=public
+            - KC_DB_URL_DATABASE=keycloak_db
+            - KC_DB_URL_HOST=keycloak-db
+            - KC_DB_URL_PORT=5432
+            - KC_DB_URL=jdbc:postgresql://keycloak-db:5432/keycloak_db?ssl=allow
+        ports: 
+            - 8080:8080
+        volumes: 
+            - ./keycloak/custom-theme:/opt/keycloak/themes/toky-keycloak-theme
+            - ./keycloak/config:/opt/keycloak/data/import
+        depends_on: 
+            - keycloak-db
+        command: ['start-dev --import-realm']

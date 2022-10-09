@@ -13,6 +13,12 @@ type ApplicationUserDTO struct {
 	EMail     string `json:"eMail"`
 }
 
+type LoginInformationDto struct {
+	AuthUrl      string `json:"authUrl"`
+	ClientSecret string `json:"clientSecret"`
+	ClientId     string `json:"clientId"`
+}
+
 type BookRealmDTO struct {
 	BookID      string               `json:"bookId"`
 	BookName    string               `json:"bookName"`
@@ -22,15 +28,16 @@ type BookRealmDTO struct {
 }
 
 type AccountTableDTO struct {
-	AccountName string            `json:"accountName"`
-	AccountID   string            `json:"accountId"`
-	Bookings    []TableBookingDTO `json:"bookings"`
-	AccountSum  string            `json:"accountSum"`
-	Type        string            `json:"type"`
-	Category    string            `json:"category"`
-	SubCategory string            `json:"subCategory"`
-	Description string            `json:"description"`
-	Saldo       string            `json:"-"`
+	AccountName      string            `json:"accountName"`
+	AccountID        string            `json:"accountId"`
+	Bookings         []TableBookingDTO `json:"bookings"`
+	AccountSum       string            `json:"accountSum"`
+	Type             string            `json:"type"`
+	Category         string            `json:"category"`
+	SubCategory      string            `json:"subCategory"`
+	Description      string            `json:"description"`
+	Saldo            string            `json:"-"`
+	SaldierungColumn string            `json:"-"`
 }
 
 type TableBookingDTO struct {

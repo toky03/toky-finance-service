@@ -41,6 +41,7 @@ type AuthenticationHandler interface {
 	AuthenticationMiddleware(http.Handler) http.Handler
 	HasWritePermissions(next http.Handler) http.Handler
 	IsOwner(next http.Handler) http.Handler
+	JwksUrl(w http.ResponseWriter, r *http.Request)
 }
 
 func main() {
@@ -63,6 +64,7 @@ func main() {
 
 	// TODO bei den Updates und deltes muss noch geprüft werden, ob die Entsprechende Entity auch im richtigen BookRealm ist
 	r.Handle("/metrics", monitoringHandler.MetricsHandler())
+	r.HandleFunc("/login-info", authenticationHandler.JwksUrl).Methods("GET")
 	api := r.PathPrefix("/api").Subrouter()
 	api.HandleFunc("/book", bookHandler.ReadBookRealms).Methods("GET")
 	api.HandleFunc("/book", bookHandler.CreateBookRealm).Methods("POST")
@@ -82,8 +84,10 @@ func main() {
 
 	api.HandleFunc("/user", bookHandler.CreateUser).Methods("POST")
 	api.HandleFunc("/user", bookHandler.ReadAccountingUsers).Methods("GET")
+
 	api.Use(authenticationHandler.AuthenticationMiddleware)
-	r.Use(monitoringHandler.MeasureRequest)
+
+	//r.Use(monitoringHandler.MeasureRequest)
 
 	log.Fatal(http.ListenAndServe(":3001", r))
 
