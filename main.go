@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 	"github.com/toky03/toky-finance-accounting-service/handler"
@@ -61,6 +62,7 @@ func main() {
 	}
 
 	r := mux.NewRouter()
+	log.SetOutput(os.Stdout)
 
 	// TODO bei den Updates und deltes muss noch geprüft werden, ob die Entsprechende Entity auch im richtigen BookRealm ist
 	r.Handle("/metrics", monitoringHandler.MetricsHandler())

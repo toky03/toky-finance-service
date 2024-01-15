@@ -10,7 +10,7 @@ volumes:
 
 services:
     financedb:
-        image: postgres:14-alpine
+        image: postgres:15-alpine
         environment: 
             - POSTGRES_DB=tokyfinance
             - POSTGRES_PASSWORD=pwd
@@ -37,7 +37,7 @@ services:
             - keycloak-service
             - financedb
     user-batch:
-        image: toky03/user-batch:0.3.1
+        image: toky03/user-batch:1.0.0
         environment:
             - REST_PORT=3005
             - INTERVAL_SECONDS=10
@@ -61,8 +61,8 @@ services:
             POSTGRES_USER: kc_user
             POSTGRES_PASSWORD: kc_password
     keycloak-service:
-        image: quay.io/keycloak/keycloak
-        environment: 
+        image: toky03/keycloak-finance
+        environment:
             - KEYCLOAK_ADMIN=admin
             - KEYCLOAK_ADMIN_PASSWORD=admin
             - KC_DB=postgres
@@ -75,6 +75,7 @@ services:
             - KC_DB_URL_HOST=keycloak-db
             - KC_DB_URL_PORT=5432
             - KC_DB_URL=jdbc:postgresql://keycloak-db:5432/keycloak_db?ssl=allow
+            - WEBHOOK_URL=http://user-batch:3005/triggerBatchRun
         ports: 
             - 8080:8080
         volumes: 
@@ -82,4 +83,3 @@ services:
             - ./keycloak/config:/opt/keycloak/data/import
         depends_on: 
             - keycloak-db
-        command: ['start-dev --import-realm']

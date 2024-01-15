@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	jwtauthhandler "github.com/toky03/jwt-auth-handler"

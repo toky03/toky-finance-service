@@ -3,7 +3,7 @@ syntax = "proto3";
 
 package grpc_users;
 
-option go_package = ".";
+option go_package = "github.com/toky03/toky-finance-accounting-service/grpc_users";
 
 
 message User {
