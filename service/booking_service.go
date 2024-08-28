@@ -6,7 +6,6 @@ import (
 
 	"github.com/toky03/toky-finance-accounting-service/bookingutils"
 	"github.com/toky03/toky-finance-accounting-service/model"
-	"github.com/toky03/toky-finance-accounting-service/repository"
 )
 
 type BookingRepository interface {
@@ -22,9 +21,9 @@ type bookServiceImpl struct {
 	bookingRepository BookingRepository
 }
 
-func CreateBookService() *bookServiceImpl {
+func CreateBookService(bookRepository BookingRepository) *bookServiceImpl {
 	return &bookServiceImpl{
-		bookingRepository: repository.CreateRepository(),
+		bookingRepository: bookRepository,
 	}
 }
 
