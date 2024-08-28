@@ -8,7 +8,6 @@ import (
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/toky03/toky-finance-accounting-service/model"
-	"github.com/toky03/toky-finance-accounting-service/service"
 )
 
 // BookRealmService interface to define Contract
@@ -34,10 +33,10 @@ type bookRealmHandler struct {
 	userService      userService
 }
 
-func CreateBookRealmHandler() *bookRealmHandler {
+func CreateBookRealmHandler(bookRealmService bookRealmService, userService userService) *bookRealmHandler {
 	return &bookRealmHandler{
-		bookRealmService: service.CreateBookService(),
-		userService:      service.CreateApplicationUserService(),
+		bookRealmService: bookRealmService,
+		userService:      userService,
 	}
 }
 
