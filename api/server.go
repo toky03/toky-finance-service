@@ -3,9 +3,10 @@ package api
 import (
 	"log"
 	"net/http"
-
-	"github.com/gorilla/mux"
+	"strings"
 )
+
+type middleware func(http.Handler) http.Handler
 
 type AccountingHandler interface {
 	ReadAccounts(w http.ResponseWriter, r *http.Request)
@@ -62,34 +63,66 @@ func CreateServer(bookHandler BookHandler, monitoringHandler MonitoringHandler, 
 
 func (s *Server) Start() {
 
-	r := mux.NewRouter()
+	r := http.NewServeMux()
 
 	// TODO bei den Updates und deltes muss noch geprüft werden, ob die Entsprechende Entity auch im richtigen BookRealm ist
-	r.Handle("/metrics", s.monitoringHandler.MetricsHandler())
-	r.HandleFunc("/login-info", s.authenticationHandler.JwksUrl).Methods("GET")
-	api := r.PathPrefix("/api").Subrouter()
-	api.HandleFunc("/book", s.bookHandler.ReadBookRealms).Methods("GET")
-	api.HandleFunc("/book", s.bookHandler.CreateBookRealm).Methods("POST")
-	api.Handle("/book/{bookID}", s.authenticationHandler.IsOwner(http.HandlerFunc(s.bookHandler.UpdateBookRealm))).Methods("PUT")
-	api.Handle("/book/{bookID}", s.authenticationHandler.IsOwner(http.HandlerFunc(s.bookHandler.DeleteBookRealm))).Methods("DELETE")
-	api.HandleFunc("/book/{bookID}", s.bookHandler.ReadBookRealmById).Methods("GET")
-	api.HandleFunc("/book/{bookID}/account", s.accountingHandler.ReadAccounts).Methods("GET")
-	api.Handle("/book/{bookID}/account", s.authenticationHandler.HasWritePermissions(http.HandlerFunc(s.accountingHandler.CreateAccount))).Methods("POST")
-	api.Handle("/book/{bookID}/account/{accountID}", s.authenticationHandler.HasWritePermissions(http.HandlerFunc(s.accountingHandler.UpdateAccount))).Methods("PUT")
-	api.Handle("/book/{bookID}/account/{accountID}", s.authenticationHandler.HasWritePermissions(http.HandlerFunc(s.accountingHandler.DeleteAccount))).Methods("DELETE")
-	api.HandleFunc("/book/{bookID}/accountOption", s.accountingHandler.ReadAccountOptions).Methods("GET")
-	api.HandleFunc("/book/{bookID}/closingStatements", s.accountingHandler.ReadClosingStatements).Methods("GET")
-	api.HandleFunc("/book/{bookID}/booking", s.accountingHandler.ReadBookings).Methods("GET")
-	api.Handle("/book/{bookID}/booking", s.authenticationHandler.HasWritePermissions(http.HandlerFunc(s.accountingHandler.CreateBooking))).Methods("POST")
-	api.Handle("/book/{bookID}/booking/{bookingID}", s.authenticationHandler.HasWritePermissions(http.HandlerFunc(s.accountingHandler.UpdateBooking))).Methods("PUT")
-	api.Handle("/book/{bookID}/booking/{bookingID}", s.authenticationHandler.HasWritePermissions(http.HandlerFunc(s.accountingHandler.DeleteBooking))).Methods("DELETE")
-
-	api.HandleFunc("/user", s.bookHandler.CreateUser).Methods("POST")
-	api.HandleFunc("/user", s.bookHandler.ReadAccountingUsers).Methods("GET")
-
-	api.Use(s.authenticationHandler.AuthenticationMiddleware)
-
-	r.Use(s.monitoringHandler.MeasureRequest)
+	r.Handle("GET /metrics", s.monitoringHandler.MetricsHandler())
+	r.HandleFunc("GET /login-info", s.authenticationHandler.JwksUrl)
+	api := Subrouter(r, "/api")
+	api.Handle("GET /book", s.authMonitoring(s.bookHandler.ReadBookRealms))
+	api.Handle("POST /book", s.authMonitoring(s.bookHandler.CreateBookRealm))
+	api.Handle("PUT /book/{bookID}", s.authMonitoring(http.HandlerFunc(s.bookHandler.UpdateBookRealm), s.authenticationHandler.IsOwner))
+	api.Handle("DELTE /book/{bookID}", s.authMonitoring(http.HandlerFunc(s.bookHandler.DeleteBookRealm), s.authenticationHandler.IsOwner))
+	api.Handle("GET /book/{bookID}", s.authMonitoring(s.bookHandler.ReadBookRealmById))
+	api.Handle("GET /book/{bookID}/account", s.authMonitoring(s.accountingHandler.ReadAccounts))
+	api.Handle("POST /book/{bookID}/account", s.authMonitoring(http.HandlerFunc(s.accountingHandler.CreateAccount), s.authenticationHandler.HasWritePermissions))
+	api.Handle("PUT /book/{bookID}/account/{accountID}", s.authMonitoring(http.HandlerFunc(s.accountingHandler.UpdateAccount), s.authenticationHandler.HasWritePermissions))
+	api.Handle("DELETE /book/{bookID}/account/{accountID}", s.authMonitoring(http.HandlerFunc(s.accountingHandler.DeleteAccount), s.authenticationHandler.HasWritePermissions))
+	api.Handle("GET /book/{bookID}/accountOption", s.authMonitoring(s.accountingHandler.ReadAccountOptions))
+	api.Handle("GET /book/{bookID}/closingStatements", s.authMonitoring(s.accountingHandler.ReadClosingStatements))
+	api.Handle("GET /book/{bookID}/booking", s.authMonitoring(s.accountingHandler.ReadBookings))
+	api.Handle("POST /book/{bookID}/booking", s.authMonitoring(http.HandlerFunc(s.accountingHandler.CreateBooking), s.authenticationHandler.HasWritePermissions))
+	api.Handle("PUT /book/{bookID}/booking/{bookingID}", s.authMonitoring(http.HandlerFunc(s.accountingHandler.UpdateBooking), s.authenticationHandler.HasWritePermissions))
+	api.Handle("DELETE /book/{bookID}/booking/{bookingID}", s.authMonitoring(http.HandlerFunc(s.accountingHandler.DeleteBooking), s.authenticationHandler.HasWritePermissions))
+	api.Handle("POST /user", s.authMonitoring(s.bookHandler.CreateUser))
+	api.Handle("GET /user", s.authMonitoring(s.bookHandler.ReadAccountingUsers))
 
 	log.Fatal(http.ListenAndServe(":3001", r))
+}
+
+func (s *Server) authMonitoring(handlerFunc http.HandlerFunc, additionalMiddlewares ...middleware) http.Handler {
+	middlewares := append(additionalMiddlewares, s.authenticationHandler.AuthenticationMiddleware, s.monitoringHandler.MeasureRequest)
+	return combineMiddlewares(handlerFunc, middlewares...)
+}
+
+func combineMiddlewares(handlerFunc http.HandlerFunc, middlewares ...middleware) http.Handler {
+
+	handler := http.Handler(handlerFunc)
+
+	if len(middlewares) < 1 {
+		return handler
+	}
+
+	wrappedHandler := handler
+	for _, mw := range middlewares {
+		wrappedHandler = mw(wrappedHandler)
+	}
+	return wrappedHandler
+}
+
+func Subrouter(router *http.ServeMux, route string) *http.ServeMux {
+	sr := http.NewServeMux()
+	route = strings.TrimSuffix(route, "/")
+	router.Handle(route, removePrefix(sr, route))
+	router.Handle(route+"/", removePrefix(sr, route))
+	return sr
+}
+
+func removePrefix(h http.Handler, prefix string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		r.URL.Path = "/" + strings.TrimPrefix(strings.TrimPrefix(path, prefix), "/")
+		h.ServeHTTP(w, r)
+		r.URL.Path = path
+	})
 }

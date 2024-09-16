@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,8 +10,6 @@ import (
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/gorilla/context"
-	"github.com/gorilla/mux"
 	jwtauthhandler "github.com/toky03/jwt-auth-handler"
 	"github.com/toky03/toky-finance-accounting-service/model"
 	"github.com/toky03/toky-finance-accounting-service/service"
@@ -78,20 +77,19 @@ func (h *authenticationHandlerImpl) JwksUrl(w http.ResponseWriter, r *http.Reque
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
-	return
 }
 
 func (h *authenticationHandlerImpl) HasWritePermissions(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userId := context.Get(r, "user-id")
-		if userId == "" {
-			return
+		userId, ok := r.Context().Value("user-id").(string)
+		if !ok {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Missing user-id"))
 		}
 		var err model.TokyError
-		vars := mux.Vars(r)
-		bookID := vars["bookID"]
-		accountID := vars["accountID"]
-		bookingID := vars["bookingID"]
+		bookID := r.PathValue("bookID")
+		accountID := r.PathValue("accountID")
+		bookingID := r.PathValue("bookingID")
 		if accountID != "" && bookingID == "" {
 			bookID, err = h.accountingService.ReadBookIdFromAccount(accountID)
 			if model.IsExisting(err) {
@@ -108,7 +106,7 @@ func (h *authenticationHandlerImpl) HasWritePermissions(next http.Handler) http.
 				return
 			}
 		}
-		isPermitted, err := h.userService.HasWriteAccessFromBook(userId.(string), bookID)
+		isPermitted, err := h.userService.HasWriteAccessFromBook(userId, bookID)
 		if model.IsExisting(err) {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Could not Read Write Permissions"))
@@ -124,18 +122,17 @@ func (h *authenticationHandlerImpl) HasWritePermissions(next http.Handler) http.
 			return
 		}
 	})
-
 }
 
 func (h *authenticationHandlerImpl) IsOwner(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userId := context.Get(r, "user-id")
-		if userId == "" {
-			return
+		userId, ok := r.Context().Value("user-id").(string)
+		if !ok {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Missing user-id"))
 		}
-		vars := mux.Vars(r)
-		bookID := vars["bookID"]
-		isPermitted, err := h.userService.IsOwnerOfBook(userId.(string), bookID)
+		bookID := r.PathValue("bookID")
+		isPermitted, err := h.userService.IsOwnerOfBook(userId, bookID)
 		if model.IsExisting(err) {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Could not Read Write Permissions"))
@@ -194,8 +191,8 @@ func (h *authenticationHandlerImpl) AuthenticationMiddleware(next http.Handler) 
 				w.Write([]byte(userServiceErr.ErrorMessage()))
 				return
 			}
-			context.Set(r, "user-id", applicationUser.UserID)
-			next.ServeHTTP(w, r)
+			ctx := context.WithValue(r.Context(), "user-id", applicationUser.UserID)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		}
 
 	})

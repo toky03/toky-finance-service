@@ -13,7 +13,7 @@
 - ID_PROVIDER_CLIENT_SECRET can be found in keycloack under Clients > Client details > Credentials
 - OPENID_JWKS_EXTERNAL_URL optional if not set it will be the same as OPENID_JWKS_URL
 #### build
-`docker build  -t toky03/simpleaccounting-backend .`
+`docker build -t toky03/simpleaccounting-backend .`
 
 ## Protocolbuffer
 ### make protoc-gen-go available

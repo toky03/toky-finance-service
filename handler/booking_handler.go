@@ -2,11 +2,8 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
-	"github.com/gorilla/context"
-	"github.com/gorilla/mux"
 	"github.com/toky03/toky-finance-accounting-service/model"
 )
 
@@ -41,8 +38,7 @@ func CreateBookRealmHandler(bookRealmService bookRealmService, userService userS
 }
 
 func (h *bookRealmHandler) ReadBookRealmById(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	bookID := vars["bookID"]
+	bookID := r.PathValue("bookID")
 	bookRealm, err := h.bookRealmService.FindBookRealmById(bookID)
 	if model.IsExisting(err) {
 		handleError(err, w)
@@ -59,11 +55,12 @@ func (h *bookRealmHandler) ReadBookRealmById(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *bookRealmHandler) ReadBookRealms(w http.ResponseWriter, r *http.Request) {
-	userId := context.Get(r, "user-id")
-	if userId == "" {
-		return
+	userId, ok := r.Context().Value("user-id").(string)
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Missing user-id"))
 	}
-	bookRealms, err := h.bookRealmService.FindBookRealmsPermittedForUser(userId.(string))
+	bookRealms, err := h.bookRealmService.FindBookRealmsPermittedForUser(userId)
 	if model.IsExisting(err) {
 		handleError(err, w)
 		return
@@ -86,9 +83,12 @@ func (h *bookRealmHandler) CreateBookRealm(w http.ResponseWriter, r *http.Reques
 		http.Error(w, decoderError.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-	userName := context.Get(r, "user-id")
-
-	createRealmErr := h.bookRealmService.CreateBookRealm(bookRealm, fmt.Sprint(userName))
+	userId, ok := r.Context().Value("user-id").(string)
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Missing user-id"))
+	}
+	createRealmErr := h.bookRealmService.CreateBookRealm(bookRealm, userId)
 	if model.IsExisting(createRealmErr) {
 		handleError(createRealmErr, w)
 		return
@@ -98,8 +98,7 @@ func (h *bookRealmHandler) CreateBookRealm(w http.ResponseWriter, r *http.Reques
 
 func (h *bookRealmHandler) UpdateBookRealm(w http.ResponseWriter, r *http.Request) {
 	var bookRealm model.BookRealmDTO
-	vars := mux.Vars(r)
-	bookID := vars["bookID"]
+	bookID := r.PathValue("bookID")
 	decoderError := json.NewDecoder(r.Body).Decode(&bookRealm)
 	if decoderError != nil {
 		http.Error(w, decoderError.Error(), http.StatusUnprocessableEntity)
@@ -121,8 +120,7 @@ func (h *bookRealmHandler) UpdateBookRealm(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *bookRealmHandler) DeleteBookRealm(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	bookID := vars["bookID"]
+	bookID := r.PathValue("bookID")
 	err := h.bookRealmService.DeleteBookRealm(bookID)
 	if model.IsExisting(err) {
 		handleError(err, w)

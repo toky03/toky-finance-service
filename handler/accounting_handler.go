@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/gorilla/mux"
 	"github.com/toky03/toky-finance-accounting-service/model"
 	"github.com/toky03/toky-finance-accounting-service/service"
 )
@@ -36,8 +35,7 @@ func CreateAccountingHandler() *accountingHandlerImpl {
 }
 
 func (h *accountingHandlerImpl) ReadAccounts(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	bookID := vars["bookID"]
+	bookID := r.PathValue("bookID")
 	accounts, err := h.AccountingService.ReadAccountsFromBook(bookID)
 	if model.IsExistingNotFoundError(err) {
 		handleError(err, w)
@@ -53,8 +51,7 @@ func (h *accountingHandlerImpl) ReadAccounts(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *accountingHandlerImpl) ReadAccountOptions(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	bookID := vars["bookID"]
+	bookID := r.PathValue("bookID")
 	accounts, err := h.AccountingService.ReadAccountOptionsFromBook(bookID)
 	if model.IsExisting(err) {
 		handleError(err, w)
@@ -71,8 +68,7 @@ func (h *accountingHandlerImpl) ReadAccountOptions(w http.ResponseWriter, r *htt
 }
 
 func (h *accountingHandlerImpl) ReadClosingStatements(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	bookID := vars["bookID"]
+	bookID := r.PathValue("bookID")
 	ClosingSheetStatements, err := h.AccountingService.ReadClosingStatements(bookID)
 	if model.IsExisting(err) {
 		handleError(err, w)
@@ -89,8 +85,7 @@ func (h *accountingHandlerImpl) ReadClosingStatements(w http.ResponseWriter, r *
 
 func (h *accountingHandlerImpl) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	var account model.AccountOptionDTO
-	vars := mux.Vars(r)
-	bookID := vars["bookID"]
+	bookID := r.PathValue("bookID")
 
 	decoderError := json.NewDecoder(r.Body).Decode(&account)
 	if decoderError != nil {
@@ -108,8 +103,7 @@ func (h *accountingHandlerImpl) CreateAccount(w http.ResponseWriter, r *http.Req
 
 func (h *accountingHandlerImpl) UpdateAccount(w http.ResponseWriter, r *http.Request) {
 	var account model.AccountOptionDTO
-	vars := mux.Vars(r)
-	accountID := vars["accountID"]
+	accountID := r.PathValue("accountID")
 
 	decoderError := json.NewDecoder(r.Body).Decode(&account)
 	if decoderError != nil {
@@ -125,8 +119,7 @@ func (h *accountingHandlerImpl) UpdateAccount(w http.ResponseWriter, r *http.Req
 	w.WriteHeader(http.StatusCreated)
 }
 func (h *accountingHandlerImpl) DeleteAccount(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	accountID := vars["accountID"]
+	accountID := r.PathValue("accountID")
 	accountDeletionError := h.AccountingService.DeleteAccount(accountID)
 	if model.IsExisting(accountDeletionError) {
 		handleError(accountDeletionError, w)
@@ -136,8 +129,7 @@ func (h *accountingHandlerImpl) DeleteAccount(w http.ResponseWriter, r *http.Req
 }
 func (h *accountingHandlerImpl) ReadBookings(w http.ResponseWriter, r *http.Request) {
 
-	vars := mux.Vars(r)
-	bookID := vars["bookID"]
+	bookID := r.PathValue("bookID")
 	bookings, err := h.AccountingService.ReadBookings(bookID)
 	if model.IsExisting(err) {
 		handleError(err, w)
@@ -171,8 +163,7 @@ func (h *accountingHandlerImpl) CreateBooking(w http.ResponseWriter, r *http.Req
 
 func (h *accountingHandlerImpl) UpdateBooking(w http.ResponseWriter, r *http.Request) {
 	var booking model.BookingDTO
-	vars := mux.Vars(r)
-	bookingId := vars["bookingID"]
+	bookingId := r.PathValue("bookID")
 
 	err := json.NewDecoder(r.Body).Decode(&booking)
 	if err != nil {
@@ -188,8 +179,7 @@ func (h *accountingHandlerImpl) UpdateBooking(w http.ResponseWriter, r *http.Req
 }
 
 func (h *accountingHandlerImpl) DeleteBooking(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	bookingId := vars["bookingID"]
+	bookingId := r.PathValue("bookID")
 	bookingDeletionError := h.AccountingService.DeleteBooking(bookingId)
 	if model.IsExisting(bookingDeletionError) {
 		handleError(bookingDeletionError, w)

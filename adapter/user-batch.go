@@ -2,7 +2,7 @@ package adapter
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -39,7 +39,7 @@ func (a *userBatchAdapterImpl) TriggerUserBatchRun() model.TokyError {
 		log.Printf("Error executing Request %v", err)
 	}
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 
 		return model.CreateTechnicalError(fmt.Sprintf("Failure with manual user Batch trigger %d %v", res.StatusCode, string(body)), err)
