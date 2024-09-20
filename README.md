@@ -25,3 +25,7 @@
     --go-grpc_out=. --go-grpc_opt=paths=source_relative \
     grpc_users/userservice.proto`
 
+## Saved testuser
+Username: toky
+Password: pwd
+

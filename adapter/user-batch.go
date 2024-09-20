@@ -29,19 +29,22 @@ func (a *userBatchAdapterImpl) TriggerUserBatchRun() model.TokyError {
 
 	client := &http.Client{}
 
-	req, err := http.NewRequest("POST", a.userBatchEndpoint, nil)
+	// error could only appear if the method is not correct
+	req, _ := http.NewRequest("POST", a.userBatchEndpoint, nil)
 
-	if err != nil {
-		log.Printf("Error creating Request %v", err)
-	}
 	res, err := client.Do(req)
 	if err != nil {
-		log.Printf("Error executing Request %v", err)
+		return model.CreateTechnicalError("error executing request for trigger batch run", err)
 	}
 
 	body, err := io.ReadAll(res.Body)
-	if err != nil {
 
+	if res.StatusCode > http.StatusOK || res.StatusCode > http.StatusPermanentRedirect {
+		return model.CreateTechnicalError(fmt.Sprintf("No successful response got %d with message %v", res.StatusCode, string(body)), err)
+
+	}
+
+	if err != nil {
 		return model.CreateTechnicalError(fmt.Sprintf("Failure with manual user Batch trigger %d %v", res.StatusCode, string(body)), err)
 	}
 	defer res.Body.Close()
