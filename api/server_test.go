@@ -23,7 +23,10 @@ func TestCreateServer(t *testing.T) {
 	}{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CreateServer(tt.args.bookHandler, tt.args.monitoringHandler, tt.args.accountingHandler, tt.args.authenticationHandler); !reflect.DeepEqual(got, tt.want) {
+			if got := CreateServer(tt.args.bookHandler, tt.args.monitoringHandler, tt.args.accountingHandler, tt.args.authenticationHandler); !reflect.DeepEqual(
+				got,
+				tt.want,
+			) {
 				t.Errorf("CreateServer() = %v, want %v", got, tt.want)
 			}
 		})
@@ -83,7 +86,10 @@ func TestServer_authMonitoring(t *testing.T) {
 				accountingHandler:     tt.fields.accountingHandler,
 				authenticationHandler: tt.fields.authenticationHandler,
 			}
-			if got := s.authMonitoring(tt.args.handlerFunc, tt.args.additionalMiddlewares...); !reflect.DeepEqual(got, tt.want) {
+			if got := s.authMonitoring(tt.args.handlerFunc, tt.args.additionalMiddlewares...); !reflect.DeepEqual(
+				got,
+				tt.want,
+			) {
 				t.Errorf("Server.authMonitoring() = %v, want %v", got, tt.want)
 			}
 		})
@@ -104,7 +110,10 @@ func Test_combineMiddlewares(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := combineMiddlewares(tt.args.handlerFunc, tt.args.middlewares...); !reflect.DeepEqual(got, tt.want) {
+			if got := combineMiddlewares(tt.args.handlerFunc, tt.args.middlewares...); !reflect.DeepEqual(
+				got,
+				tt.want,
+			) {
 				t.Errorf("combineMiddlewares() = %v, want %v", got, tt.want)
 			}
 		})

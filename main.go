@@ -24,7 +24,12 @@ func main() {
 	accountingHandler := handler.CreateAccountingHandler()
 	authenticationHandler := handler.CreateAuthenticationHandler()
 
-	server := api.CreateServer(bookHandler, monitoringHandler, accountingHandler, authenticationHandler)
+	server := api.CreateServer(
+		bookHandler,
+		monitoringHandler,
+		accountingHandler,
+		authenticationHandler,
+	)
 
 	err := handler.CreateAndRegisterUserBatchService()
 	if err != nil {
