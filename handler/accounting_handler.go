@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/toky03/toky-finance-accounting-service/model"
-	"github.com/toky03/toky-finance-accounting-service/service"
 )
 
 type AccountingService interface {
@@ -27,10 +26,10 @@ type accountingHandlerImpl struct {
 	UserService       userService
 }
 
-func CreateAccountingHandler() *accountingHandlerImpl {
+func CreateAccountingHandler(accountingService AccountingService, userService userService) *accountingHandlerImpl {
 	return &accountingHandlerImpl{
-		AccountingService: service.CreateAccountingService(),
-		UserService:       service.CreateApplicationUserService(),
+		AccountingService: accountingService,
+		UserService:       userService,
 	}
 }
 

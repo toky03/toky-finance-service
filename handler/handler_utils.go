@@ -28,5 +28,4 @@ func handleError(error model.TokyError, w http.ResponseWriter) {
 		w.Write([]byte(error.ErrorMessage()))
 		return
 	}
-	return
 }
