@@ -11,41 +11,85 @@ import (
 )
 
 func TestReadAccounts(t *testing.T) {
-	mockUserService := CreateMockUserService()
-	mockAccountingService := CreateMockAccountingService()
-	bookID := "testBookID"
-
-	mockAccountTable := model.AccountTableDTO{
-		AccountName: "Name",
-		AccountID:   "id"}
-
-	mockAccountingService.accountTables[bookID] = []model.AccountTableDTO{
-		mockAccountTable,
+	type args struct {
+		bookID          string
+		matchingAccount model.AccountTableDTO
+		err             error
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			"read successful with BookID",
+			args{bookID: "testBookID", matchingAccount: model.AccountTableDTO{
+				AccountName: "Name",
+				AccountID:   "id",
+			}},
+		},
+		{
+			"read accounts with unkonwn bookID",
+			args{
+				bookID:          "unknown",
+				matchingAccount: model.AccountTableDTO{},
+				err:             nil,
+			},
+		},
 	}
 
-	handler := CreateAccountingHandler(&mockAccountingService, &mockUserService)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 
-	req, err := http.NewRequest("GET", "api/accounts/"+bookID, nil)
+			mockUserService := CreateMockUserService()
+			mockAccountingService := CreateMockAccountingService()
 
-	if err != nil {
-		t.Errorf("error should have been nil was %v", err)
+			// create a second account which should not match with bookId
+
+			otherAccount := model.AccountTableDTO{
+				AccountName: "XXX",
+				AccountID:   "B",
+			}
+
+			mockAccountingService.accountTables[tt.args.bookID] = []model.AccountTableDTO{
+				tt.args.matchingAccount,
+				otherAccount,
+			}
+
+			handler := CreateAccountingHandler(&mockAccountingService, &mockUserService)
+
+			req, err := http.NewRequest("GET", "api/accounts/", nil)
+			req.SetPathValue("bookID", tt.args.bookID)
+
+			if err != nil {
+				t.Errorf("error should have been nil was %v", err)
+			}
+
+			rr := httptest.NewRecorder()
+			handler.ReadAccounts(rr, req)
+
+			var accounts []model.AccountTableDTO
+			err = json.NewDecoder(rr.Body).Decode(&accounts)
+			if err != nil {
+				t.Errorf("error should have been nil was %v", err)
+			}
+
+			if tt.args.matchingAccount.AccountID == "" {
+				if len(accounts) != 0 {
+					t.Errorf("expected zero accouts but got %d", len(accounts))
+					return
+				}
+				return
+			}
+
+			if len(accounts) != 1 {
+				t.Errorf("expected exctly one account was: %v", accounts)
+			}
+			if !reflect.DeepEqual(accounts[0], tt.args.matchingAccount) {
+				t.Errorf("ReadAccountingUserHandler() = %v, want %v", accounts, tt.args.matchingAccount)
+			}
+		})
 	}
 
-	rr := httptest.NewRecorder()
-	handler.ReadAccounts(rr, req)
-
-	var accounts []model.AccountTableDTO
-	err = json.NewDecoder(rr.Body).Decode(&accounts)
-	if err != nil {
-		t.Errorf("error should have been nil was %v", err)
-	}
-
-	if len(accounts) != 1 {
-		t.Errorf("expected exctly one account was: %v", accounts)
-	}
-	if !reflect.DeepEqual(accounts, mockAccountTable) {
-		t.Errorf("ReadAccountingUserHandler() = %v, want %v", accounts, mockAccountTable)
-	}
 }
 
 // func TestCreateAccount(t *testing.T) {
