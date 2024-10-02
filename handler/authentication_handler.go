@@ -15,6 +15,12 @@ import (
 	"github.com/toky03/toky-finance-accounting-service/service"
 )
 
+type customUserIdKey string
+
+const (
+	USER_ID customUserIdKey = "x-user-id"
+)
+
 type accountingService interface {
 	ReadBookIdFromAccount(accountId string) (string, model.TokyError)
 	ReadBookIdFromBooking(bookingId string) (string, model.TokyError)
@@ -81,10 +87,10 @@ func (h *authenticationHandlerImpl) JwksUrl(w http.ResponseWriter, r *http.Reque
 
 func (h *authenticationHandlerImpl) HasWritePermissions(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userId, ok := r.Context().Value("user-id").(string)
+		userId, ok := r.Context().Value(USER_ID).(string)
 		if !ok {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("Missing user-id"))
+			w.Write([]byte("Missing " + string(USER_ID)))
 		}
 		var err model.TokyError
 		bookID := r.PathValue("bookID")
@@ -126,10 +132,10 @@ func (h *authenticationHandlerImpl) HasWritePermissions(next http.Handler) http.
 
 func (h *authenticationHandlerImpl) IsOwner(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userId, ok := r.Context().Value("user-id").(string)
+		userId, ok := r.Context().Value(USER_ID).(string)
 		if !ok {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("Missing user-id"))
+			w.Write([]byte("Missing " + string(USER_ID)))
 		}
 		bookID := r.PathValue("bookID")
 		isPermitted, err := h.userService.IsOwnerOfBook(userId, bookID)
@@ -166,7 +172,7 @@ func (h *authenticationHandlerImpl) AuthenticationMiddleware(next http.Handler) 
 				token, errParse := jwt.ParseWithClaims(jwtToken, claims, func(token *jwt.Token) (interface{}, error) {
 					if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 						fmt.Printf("signing method not expected\n")
-						return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+						return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 					}
 					return &rsaKey, nil
 				})
@@ -191,7 +197,7 @@ func (h *authenticationHandlerImpl) AuthenticationMiddleware(next http.Handler) 
 				w.Write([]byte(userServiceErr.ErrorMessage()))
 				return
 			}
-			ctx := context.WithValue(r.Context(), "user-id", applicationUser.UserID)
+			ctx := context.WithValue(r.Context(), USER_ID, applicationUser.UserID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
 

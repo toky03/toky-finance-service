@@ -42,12 +42,12 @@ func CreateAndRegisterUserBatchService() error {
 		cachedUsers: nil,
 		userService: service.CreateApplicationUserService(),
 	}
-	grpc_users.RegisterUserServiceServer(grpcServer, batchService)
+	grpc_users.RegisterUserServiceServer(grpcServer, &batchService)
 	go grpcServer.Serve(lis)
 	return nil
 }
 
-func (s UserServiceServerImpl) GetAllUsers(context.Context, *grpc_users.Empty) (*grpc_users.GetUsersResponse, error) {
+func (s *UserServiceServerImpl) GetAllUsers(context.Context, *grpc_users.Empty) (*grpc_users.GetUsersResponse, error) {
 	if s.cachedUsers != nil && len(s.cachedUsers.GetUsers()) > 0 {
 		return s.cachedUsers, nil
 	}
@@ -58,7 +58,7 @@ func (s UserServiceServerImpl) GetAllUsers(context.Context, *grpc_users.Empty) (
 	s.cachedUsers = mapUserDTOsTogrpcUsers(users)
 	return s.cachedUsers, nil
 }
-func (s UserServiceServerImpl) UpdateUser(ctx context.Context, user *grpc_users.User) (*grpc_users.Empty, error) {
+func (s *UserServiceServerImpl) UpdateUser(ctx context.Context, user *grpc_users.User) (*grpc_users.Empty, error) {
 	tokyErr := s.userService.UpdateUser(mapGrpcUserToDTO(user))
 	if model.IsExisting(tokyErr) {
 		return nil, tokyErr.Error()
@@ -66,7 +66,7 @@ func (s UserServiceServerImpl) UpdateUser(ctx context.Context, user *grpc_users.
 	s.cachedUsers = nil
 	return &grpc_users.Empty{}, nil
 }
-func (s UserServiceServerImpl) AddUser(ctx context.Context, user *grpc_users.User) (*grpc_users.Empty, error) {
+func (s *UserServiceServerImpl) AddUser(ctx context.Context, user *grpc_users.User) (*grpc_users.Empty, error) {
 	tokyErr := s.userService.CreateUser(mapGrpcUserToDTO(user))
 	if model.IsExisting(tokyErr) {
 		return nil, tokyErr.Error()
@@ -74,7 +74,7 @@ func (s UserServiceServerImpl) AddUser(ctx context.Context, user *grpc_users.Use
 	s.cachedUsers = nil
 	return &grpc_users.Empty{}, nil
 }
-func (s UserServiceServerImpl) DeleteUser(ctx context.Context, userId *grpc_users.UserId) (*grpc_users.Empty, error) {
+func (s *UserServiceServerImpl) DeleteUser(ctx context.Context, userId *grpc_users.UserId) (*grpc_users.Empty, error) {
 	tokyErr := s.userService.DeleteUser(userId.GetId())
 	if model.IsExisting(tokyErr) {
 		return nil, tokyErr.Error()

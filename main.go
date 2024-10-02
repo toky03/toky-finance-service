@@ -16,12 +16,14 @@ func main() {
 
 	bookRepository := repository.CreateRepository()
 
-	accountingService := service.CreateBookService(bookRepository)
+	bookService := service.CreateBookService(bookRepository)
+	accountingService :=
+		service.CreateAccountingService()
 	userService := service.CreateApplicationUserService()
 
-	bookHandler := handler.CreateBookRealmHandler(accountingService, userService)
+	bookHandler := handler.CreateBookRealmHandler(bookService, userService)
 	monitoringHandler := handler.CreateMonitoringHandler()
-	accountingHandler := handler.CreateAccountingHandler()
+	accountingHandler := handler.CreateAccountingHandler(accountingService, userService)
 	authenticationHandler := handler.CreateAuthenticationHandler()
 
 	server := api.CreateServer(
@@ -35,6 +37,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	server.Start()
+	server.RegisterHandlers()
+	server.ServeHTTP()
 
 }

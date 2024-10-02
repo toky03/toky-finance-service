@@ -1,162 +1,269 @@
 package api
 
 import (
-	"net/http"
-	"reflect"
+	"net/http/httptest"
 	"testing"
+	"time"
 )
 
-type MockBookHandler struct {
-}
-
-func TestCreateServer(t *testing.T) {
-	type args struct {
-		bookHandler           BookHandler
-		monitoringHandler     MonitoringHandler
-		accountingHandler     AccountingHandler
-		authenticationHandler AuthenticationHandler
-	}
-	tests := []struct {
-		name string
-		args args
-		want *Server
-	}{}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := CreateServer(tt.args.bookHandler, tt.args.monitoringHandler, tt.args.accountingHandler, tt.args.authenticationHandler); !reflect.DeepEqual(
-				got,
-				tt.want,
-			) {
-				t.Errorf("CreateServer() = %v, want %v", got, tt.want)
-			}
-		})
+func createCallNamesHandlerMap(
+	bookHandler *MockBookHandler,
+	monitoringHandler *MockMonitoringHandler,
+	accountingHandler *MockAccountingHandler,
+	authenticationHandler *MockAuthenticationHandler,
+) map[string]Mock {
+	return map[string]Mock{
+		"readAccounts":             accountingHandler,
+		"readAccountOptions":       accountingHandler,
+		"readBookings":             accountingHandler,
+		"createBooking":            accountingHandler,
+		"updateBooking":            accountingHandler,
+		"deleteBooking":            accountingHandler,
+		"createAccount":            accountingHandler,
+		"updateAccount":            accountingHandler,
+		"deleteAccount":            accountingHandler,
+		"saveAccountOption":        accountingHandler,
+		"readClosingStatements":    accountingHandler,
+		"readBookRealms":           bookHandler,
+		"createBookRealm":          bookHandler,
+		"updateBookRealm":          bookHandler,
+		"deleteBookRealm":          bookHandler,
+		"readAccountingUsers":      bookHandler,
+		"createUser":               bookHandler,
+		"readBookRealmById":        bookHandler,
+		"monitoringHandler":        monitoringHandler,
+		"measureRequest":           monitoringHandler,
+		"authenticationMiddleware": authenticationHandler,
+		"hasWritePermissions":      authenticationHandler,
+		"isOwner":                  authenticationHandler,
+		"jwksUrl":                  authenticationHandler,
 	}
 }
 
 func TestServer_Start(t *testing.T) {
 	type fields struct {
-		bookHandler           BookHandler
-		monitoringHandler     MonitoringHandler
-		accountingHandler     AccountingHandler
-		authenticationHandler AuthenticationHandler
+		requestType           string
+		requestUrl            string
+		excpectedCallsInOrder []string
 	}
 	tests := []struct {
 		name   string
 		fields fields
 	}{
-		// TODO: Add test cases.
+		{
+			name: "Test metrics",
+			fields: fields{
+				requestType:           "GET",
+				requestUrl:            "/metrics",
+				excpectedCallsInOrder: []string{"monitoringHandler"},
+			},
+		},
+		{
+			name: "Test jwks url",
+			fields: fields{
+				requestType:           "GET",
+				requestUrl:            "/login-info",
+				excpectedCallsInOrder: []string{"jwksUrl"},
+			},
+		},
+		{
+			name: "Test readBookRealms",
+			fields: fields{
+				requestType:           "GET",
+				requestUrl:            "/api/book",
+				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "readBookRealms"},
+			},
+		},
+		{
+			name: "Test createBookRealm",
+			fields: fields{
+				requestType:           "POST",
+				requestUrl:            "/api/book",
+				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "createBookRealm"},
+			},
+		},
+		{
+			name: "Test updateBookRealm",
+			fields: fields{
+				requestType:           "PUT",
+				requestUrl:            "/api/book/123",
+				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "isOwner", "updateBookRealm"},
+			},
+		},
+		{
+			name: "Test deleteBookRealm",
+			fields: fields{
+				requestType:           "DELETE",
+				requestUrl:            "/api/book/123",
+				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "isOwner", "deleteBookRealm"},
+			},
+		},
+		{
+			name: "Test readBookRealmById",
+			fields: fields{
+				requestType:           "GET",
+				requestUrl:            "/api/book/123",
+				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "readBookRealmById"},
+			},
+		},
+		{
+			name: "Test readAccounts",
+			fields: fields{
+				requestType:           "GET",
+				requestUrl:            "/api/book/123/account",
+				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "readAccounts"},
+			},
+		},
+		{
+			name: "Test createAccount",
+			fields: fields{
+				requestType:           "POST",
+				requestUrl:            "/api/book/123/account",
+				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "hasWritePermissions", "createAccount"},
+			},
+		},
+		{
+			name: "Test updateAccount",
+			fields: fields{
+				requestType:           "PUT",
+				requestUrl:            "/api/book/123/account/456",
+				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "hasWritePermissions", "updateAccount"},
+			},
+		},
+		{
+			name: "Test deleteAccount",
+			fields: fields{
+				requestType:           "DELETE",
+				requestUrl:            "/api/book/123/account/456",
+				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "hasWritePermissions", "deleteAccount"},
+			},
+		},
+		{
+			name: "Test readAccountOptions",
+			fields: fields{
+				requestType:           "GET",
+				requestUrl:            "/api/book/123/accountOption",
+				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "readAccountOptions"},
+			},
+		},
+		{
+			name: "Test readClosingStatements",
+			fields: fields{
+				requestType:           "GET",
+				requestUrl:            "/api/book/123/closingStatements",
+				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "readClosingStatements"},
+			},
+		},
+		{
+			name: "Test readBookings",
+			fields: fields{
+				requestType:           "GET",
+				requestUrl:            "/api/book/123/booking",
+				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "readBookings"},
+			},
+		},
+		{
+			name: "Test createBooking",
+			fields: fields{
+				requestType:           "POST",
+				requestUrl:            "/api/book/123/booking",
+				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "hasWritePermissions", "createBooking"},
+			},
+		},
+		{
+			name: "Test updateBooking",
+			fields: fields{
+				requestType:           "PUT",
+				requestUrl:            "/api/book/123/booking/789",
+				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "hasWritePermissions", "updateBooking"},
+			},
+		},
+		{
+			name: "Test deleteBooking",
+			fields: fields{
+				requestType:           "DELETE",
+				requestUrl:            "/api/book/123/booking/789",
+				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "hasWritePermissions", "deleteBooking"},
+			},
+		},
+		{
+			name: "Test createUser",
+			fields: fields{
+				requestType:           "POST",
+				requestUrl:            "/api/user",
+				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "createUser"},
+			},
+		},
+		{
+			name: "Test readUser",
+			fields: fields{
+				requestType:           "GET",
+				requestUrl:            "/api/user",
+				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "readAccountingUsers"},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			bookHandler := MockBookHandler{}
+			accountingHandler := MockAccountingHandler{}
+			monitoringHandler := MockMonitoringHandler{}
+			authenticationHandler := MockAuthenticationHandler{}
+
+			handlerCallMap := createCallNamesHandlerMap(&bookHandler, &monitoringHandler, &accountingHandler, &authenticationHandler)
+
+			accountingHandler.resetCalls()
+			bookHandler.resetCalls()
+			monitoringHandler.resetCalls()
+			authenticationHandler.resetCalls()
+
 			s := &Server{
-				bookHandler:           tt.fields.bookHandler,
-				monitoringHandler:     tt.fields.monitoringHandler,
-				accountingHandler:     tt.fields.accountingHandler,
-				authenticationHandler: tt.fields.authenticationHandler,
+				bookHandler:           &bookHandler,
+				monitoringHandler:     &monitoringHandler,
+				accountingHandler:     &accountingHandler,
+				authenticationHandler: &authenticationHandler,
 			}
-			s.Start()
-		})
-	}
-}
+			s.RegisterHandlers()
 
-func TestServer_authMonitoring(t *testing.T) {
-	type fields struct {
-		bookHandler           BookHandler
-		monitoringHandler     MonitoringHandler
-		accountingHandler     AccountingHandler
-		authenticationHandler AuthenticationHandler
-	}
-	type args struct {
-		handlerFunc           http.HandlerFunc
-		additionalMiddlewares []middleware
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   http.Handler
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &Server{
-				bookHandler:           tt.fields.bookHandler,
-				monitoringHandler:     tt.fields.monitoringHandler,
-				accountingHandler:     tt.fields.accountingHandler,
-				authenticationHandler: tt.fields.authenticationHandler,
-			}
-			if got := s.authMonitoring(tt.args.handlerFunc, tt.args.additionalMiddlewares...); !reflect.DeepEqual(
-				got,
-				tt.want,
-			) {
-				t.Errorf("Server.authMonitoring() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
+			w := httptest.NewRecorder()
 
-func Test_combineMiddlewares(t *testing.T) {
-	type args struct {
-		handlerFunc http.HandlerFunc
-		middlewares []middleware
-	}
-	tests := []struct {
-		name string
-		args args
-		want http.Handler
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := combineMiddlewares(tt.args.handlerFunc, tt.args.middlewares...); !reflect.DeepEqual(
-				got,
-				tt.want,
-			) {
-				t.Errorf("combineMiddlewares() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
+			lastTime := time.Now()
 
-func TestSubrouter(t *testing.T) {
-	type args struct {
-		router *http.ServeMux
-		route  string
-	}
-	tests := []struct {
-		name string
-		args args
-		want *http.ServeMux
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := Subrouter(tt.args.router, tt.args.route); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Subrouter() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
+			request := httptest.NewRequest(tt.fields.requestType, tt.fields.requestUrl, nil)
 
-func Test_removePrefix(t *testing.T) {
-	type args struct {
-		h      http.Handler
-		prefix string
-	}
-	tests := []struct {
-		name string
-		args args
-		want http.Handler
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := removePrefix(tt.args.h, tt.args.prefix); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("removePrefix() = %v, want %v", got, tt.want)
+			s.router.ServeHTTP(w, request)
+
+			for _, callName := range tt.fields.excpectedCallsInOrder {
+				call, ok := handlerCallMap[callName].popFirstCall()
+				if !ok {
+					t.Errorf("%s: expected call %s, but it was not called", tt.name, callName)
+					return
+				}
+				if call.name != callName {
+					t.Errorf("%s: expected call %s, but got %s", tt.name, callName, call.name)
+				}
+				if call.time.Before(lastTime) {
+					t.Errorf("%s: expected call %s to be after %v, but it was before", tt.name, call.name, lastTime)
+				}
+				lastTime = call.time
+			}
+
+			// calls should now be empty as every call was checked
+			callsBookHandler := bookHandler.readCalls()
+			if len(callsBookHandler) > 0 {
+				t.Errorf("expected no more calls for bookHandler, but got %v", callsBookHandler)
+			}
+			callsMonitoringHandler := monitoringHandler.readCalls()
+			if len(callsMonitoringHandler) > 0 {
+				t.Errorf("expected no more calls for monitoringHandler, but got %v", callsMonitoringHandler)
+			}
+			callsAccountingHandler := accountingHandler.readCalls()
+			if len(callsAccountingHandler) > 0 {
+				t.Errorf("expected no more calls for accountingHandler, but got %v", callsAccountingHandler)
+			}
+			callsAuthenticationHandler := authenticationHandler.readCalls()
+			if len(callsAuthenticationHandler) > 0 {
+				t.Errorf("expected no more calls for authenticationHandler, but got %v", callsAuthenticationHandler)
 			}
 		})
 	}

@@ -7,5 +7,6 @@ grpc_users/userservice_grpc.pb.go
 keycloak_example
 
 .vscode
+.idea
 
 toky-finance-accounting-service

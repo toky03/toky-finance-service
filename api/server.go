@@ -49,6 +49,7 @@ type Server struct {
 	monitoringHandler     MonitoringHandler
 	accountingHandler     AccountingHandler
 	authenticationHandler AuthenticationHandler
+	router                *http.ServeMux
 }
 
 func CreateServer(bookHandler BookHandler, monitoringHandler MonitoringHandler, accountingHandler AccountingHandler, authenticationHandler AuthenticationHandler) *Server {
@@ -61,7 +62,7 @@ func CreateServer(bookHandler BookHandler, monitoringHandler MonitoringHandler, 
 	}
 }
 
-func (s *Server) Start() {
+func (s *Server) RegisterHandlers() {
 
 	r := http.NewServeMux()
 
@@ -72,7 +73,7 @@ func (s *Server) Start() {
 	api.Handle("GET /book", s.authMonitoring(s.bookHandler.ReadBookRealms))
 	api.Handle("POST /book", s.authMonitoring(s.bookHandler.CreateBookRealm))
 	api.Handle("PUT /book/{bookID}", s.authMonitoring(http.HandlerFunc(s.bookHandler.UpdateBookRealm), s.authenticationHandler.IsOwner))
-	api.Handle("DELTE /book/{bookID}", s.authMonitoring(http.HandlerFunc(s.bookHandler.DeleteBookRealm), s.authenticationHandler.IsOwner))
+	api.Handle("DELETE /book/{bookID}", s.authMonitoring(http.HandlerFunc(s.bookHandler.DeleteBookRealm), s.authenticationHandler.IsOwner))
 	api.Handle("GET /book/{bookID}", s.authMonitoring(s.bookHandler.ReadBookRealmById))
 	api.Handle("GET /book/{bookID}/account", s.authMonitoring(s.accountingHandler.ReadAccounts))
 	api.Handle("POST /book/{bookID}/account", s.authMonitoring(http.HandlerFunc(s.accountingHandler.CreateAccount), s.authenticationHandler.HasWritePermissions))
@@ -86,8 +87,12 @@ func (s *Server) Start() {
 	api.Handle("DELETE /book/{bookID}/booking/{bookingID}", s.authMonitoring(http.HandlerFunc(s.accountingHandler.DeleteBooking), s.authenticationHandler.HasWritePermissions))
 	api.Handle("POST /user", s.authMonitoring(s.bookHandler.CreateUser))
 	api.Handle("GET /user", s.authMonitoring(s.bookHandler.ReadAccountingUsers))
+	s.router = r
 
-	log.Fatal(http.ListenAndServe(":3001", r))
+}
+
+func (s *Server) ServeHTTP() {
+	log.Fatal(http.ListenAndServe(":3001", s.router))
 }
 
 func (s *Server) authMonitoring(handlerFunc http.HandlerFunc, additionalMiddlewares ...middleware) http.Handler {
