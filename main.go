@@ -18,13 +18,13 @@ func main() {
 
 	bookService := service.CreateBookService(bookRepository)
 	accountingService :=
-		service.CreateAccountingService()
+		service.CreateAccountingService(bookRepository)
 	userService := service.CreateApplicationUserService()
 
 	bookHandler := handler.CreateBookRealmHandler(bookService, userService)
 	monitoringHandler := handler.CreateMonitoringHandler()
 	accountingHandler := handler.CreateAccountingHandler(accountingService, userService)
-	authenticationHandler := handler.CreateAuthenticationHandler()
+	authenticationHandler := handler.CreateAuthenticationHandler(accountingService, userService)
 
 	server := api.CreateServer(
 		bookHandler,

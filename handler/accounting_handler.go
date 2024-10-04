@@ -41,7 +41,7 @@ func (h *accountingHandlerImpl) ReadAccounts(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	js, marshalError := json.Marshal(accounts)
-	if err != nil {
+	if marshalError != nil {
 		http.Error(w, marshalError.Error(), http.StatusUnprocessableEntity)
 		return
 	}

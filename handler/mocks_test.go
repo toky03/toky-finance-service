@@ -57,11 +57,15 @@ func (mus *mockUserService) IsOwnerOfBook(userId, bookId string) (bool, model.To
 
 }
 
-func (mas *mockAccountingService) ReadAccountsFromBook(boodName string) ([]model.AccountTableDTO, model.TokyError) {
-	if boodName == "err" {
-		return []model.AccountTableDTO{}, model.CreateBusinessError("not found", errors.New("Not found"))
+func (mas *mockAccountingService) ReadAccountsFromBook(bookID string) ([]model.AccountTableDTO, model.TokyError) {
+	if bookID == "err" {
+		return []model.AccountTableDTO{}, model.CreateBusinessErrorNotFound("not found", errors.ErrUnsupported)
 	}
-	return mas.accountTables[boodName], nil
+	val, ok := mas.accountTables[bookID]
+	if !ok {
+		return []model.AccountTableDTO{}, nil
+	}
+	return val, nil
 }
 func (mas *mockAccountingService) ReadAccountOptionsFromBook(bookName string) ([]model.AccountOptionDTO, model.TokyError) {
 	if bookName == "err" {

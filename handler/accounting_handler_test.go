@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -35,6 +36,14 @@ func TestReadAccounts(t *testing.T) {
 				err:             nil,
 			},
 		},
+		{
+			"read accounts with error",
+			args{
+				bookID:          "err",
+				matchingAccount: model.AccountTableDTO{},
+				err:             errors.New("error"),
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -50,10 +59,11 @@ func TestReadAccounts(t *testing.T) {
 				AccountID:   "B",
 			}
 
-			mockAccountingService.accountTables[tt.args.bookID] = []model.AccountTableDTO{
+			mockAccountingService.accountTables["testBookID"] = []model.AccountTableDTO{
 				tt.args.matchingAccount,
-				otherAccount,
 			}
+
+			mockAccountingService.accountTables["book2"] = []model.AccountTableDTO{otherAccount}
 
 			handler := CreateAccountingHandler(&mockAccountingService, &mockUserService)
 
@@ -69,6 +79,19 @@ func TestReadAccounts(t *testing.T) {
 
 			var accounts []model.AccountTableDTO
 			err = json.NewDecoder(rr.Body).Decode(&accounts)
+			if tt.args.err != nil && err == nil {
+				t.Errorf("expected error but got nil")
+				return
+			}
+
+			if tt.args.err != nil && err != nil {
+				return
+			}
+
+			if rr.Result().Header["Content-Type"][0] != "application/json" {
+				t.Errorf("expected content type application/json but got %s", rr.HeaderMap.Get("Content-Type"))
+			}
+
 			if err != nil {
 				t.Errorf("error should have been nil was %v", err)
 			}

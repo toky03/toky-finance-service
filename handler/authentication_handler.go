@@ -12,7 +12,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	jwtauthhandler "github.com/toky03/jwt-auth-handler"
 	"github.com/toky03/toky-finance-accounting-service/model"
-	"github.com/toky03/toky-finance-accounting-service/service"
 )
 
 type customUserIdKey string
@@ -25,6 +24,7 @@ type accountingService interface {
 	ReadBookIdFromAccount(accountId string) (string, model.TokyError)
 	ReadBookIdFromBooking(bookingId string) (string, model.TokyError)
 }
+
 type authenticationHandlerImpl struct {
 	userService        userService
 	accountingService  accountingService
@@ -34,7 +34,7 @@ type authenticationHandlerImpl struct {
 	openIDClientID     string
 }
 
-func CreateAuthenticationHandler() *authenticationHandlerImpl {
+func CreateAuthenticationHandler(accountingService accountingService, userService userService) *authenticationHandlerImpl {
 	openIDProvider := os.Getenv("OPENID_JWKS_URL")
 	if openIDProvider == "" {
 		panic("OPENID_JWKS URL must be provided")
@@ -59,8 +59,8 @@ func CreateAuthenticationHandler() *authenticationHandlerImpl {
 		panic("jwt Handler could not have been initialized")
 	}
 	return &authenticationHandlerImpl{
-		userService:        service.CreateApplicationUserService(),
-		accountingService:  service.CreateAccountingService(),
+		userService:        userService,
+		accountingService:  accountingService,
 		jwtAuthService:     jwtHandler,
 		openIDBaseUrl:      externalOpenIDProvider,
 		openIDClientSecret: openIDClientSecret,

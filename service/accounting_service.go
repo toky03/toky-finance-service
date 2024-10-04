@@ -10,10 +10,9 @@ import (
 
 	"github.com/toky03/toky-finance-accounting-service/bookingutils"
 	"github.com/toky03/toky-finance-accounting-service/model"
-	"github.com/toky03/toky-finance-accounting-service/repository"
 )
 
-type AccontingRepository interface {
+type accontingRepository interface {
 	FindAccountsByBookId(uint) ([]model.AccountTableEntity, model.TokyError)
 	FindRelatedHabenBuchungen(model.AccountTableEntity) ([]model.BookingEntity, model.TokyError)
 	FindRelatedSollBuchungen(model.AccountTableEntity) ([]model.BookingEntity, model.TokyError)
@@ -29,12 +28,12 @@ type AccontingRepository interface {
 	FindBookingByID(uint) (model.BookingEntity, model.TokyError)
 }
 type accountingServiceImpl struct {
-	AccountingRepository AccontingRepository
+	AccountingRepository accontingRepository
 }
 
-func CreateAccountingService() *accountingServiceImpl {
+func CreateAccountingService(repository accontingRepository) *accountingServiceImpl {
 	return &accountingServiceImpl{
-		AccountingRepository: repository.CreateRepository(),
+		AccountingRepository: repository,
 	}
 }
 
