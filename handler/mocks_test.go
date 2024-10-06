@@ -40,11 +40,17 @@ func (mus *mockUserService) CreateUser(newUser model.ApplicationUserDTO) model.T
 	mus.createdUsers = append(mus.createdUsers, newUser)
 	return nil
 }
-func (mus *mockUserService) SearchUsers(limit, searchTerm string) ([]model.ApplicationUserDTO, model.TokyError) {
+
+func (mus *mockUserService) SearchUsers(
+	limit, searchTerm string,
+) ([]model.ApplicationUserDTO, model.TokyError) {
 	return mus.existingUsers, nil
 
 }
-func (mus *mockUserService) FindUserByUsername(userName string) (model.ApplicationUserDTO, model.TokyError) {
+
+func (mus *mockUserService) FindUserByUsername(
+	userName string,
+) (model.ApplicationUserDTO, model.TokyError) {
 	return mus.existingUsers[0], nil
 
 }
@@ -57,9 +63,14 @@ func (mus *mockUserService) IsOwnerOfBook(userId, bookId string) (bool, model.To
 
 }
 
-func (mas *mockAccountingService) ReadAccountsFromBook(bookID string) ([]model.AccountTableDTO, model.TokyError) {
+func (mas *mockAccountingService) ReadAccountsFromBook(
+	bookID string,
+) ([]model.AccountTableDTO, model.TokyError) {
 	if bookID == "err" {
-		return []model.AccountTableDTO{}, model.CreateBusinessErrorNotFound("not found", errors.ErrUnsupported)
+		return []model.AccountTableDTO{}, model.CreateBusinessErrorNotFound(
+			"not found",
+			errors.ErrUnsupported,
+		)
 	}
 	val, ok := mas.accountTables[bookID]
 	if !ok {
@@ -67,23 +78,43 @@ func (mas *mockAccountingService) ReadAccountsFromBook(bookID string) ([]model.A
 	}
 	return val, nil
 }
-func (mas *mockAccountingService) ReadAccountOptionsFromBook(bookName string) ([]model.AccountOptionDTO, model.TokyError) {
+
+func (mas *mockAccountingService) ReadAccountOptionsFromBook(
+	bookName string,
+) ([]model.AccountOptionDTO, model.TokyError) {
 	if bookName == "err" {
-		return []model.AccountOptionDTO{}, model.CreateBusinessError("not found", errors.ErrUnsupported)
+		return []model.AccountOptionDTO{}, model.CreateBusinessError(
+			"not found",
+			errors.ErrUnsupported,
+		)
 	}
 	return mas.accountOptions[bookName], nil
 }
-func (mas *mockAccountingService) ReadBookings(bookName string) ([]model.BookingDTO, model.TokyError) {
+
+func (mas *mockAccountingService) ReadBookings(
+	bookName string,
+) ([]model.BookingDTO, model.TokyError) {
 	if bookName == "err" {
 		return []model.BookingDTO{}, model.CreateBusinessError("not found", errors.ErrUnsupported)
 	}
 	return mas.bookings[bookName], nil
 }
-func (mas *mockAccountingService) CreateAccount(bookID string, account model.AccountOptionDTO) model.TokyError {
-	mas.accountTables[bookID] = append(mas.accountTables[bookID], model.AccountTableDTO{AccountName: account.AccountName})
+
+func (mas *mockAccountingService) CreateAccount(
+	bookID string,
+	account model.AccountOptionDTO,
+) model.TokyError {
+	mas.accountTables[bookID] = append(
+		mas.accountTables[bookID],
+		model.AccountTableDTO{AccountName: account.AccountName},
+	)
 	return nil
 }
-func (mas *mockAccountingService) UpdateAccount(accountID string, updatedAccount model.AccountOptionDTO) model.TokyError {
+
+func (mas *mockAccountingService) UpdateAccount(
+	accountID string,
+	updatedAccount model.AccountOptionDTO,
+) model.TokyError {
 	oldAccounts := mas.accountTables["default"]
 	mas.accountTables["default"] = []model.AccountTableDTO{}
 	for _, account := range oldAccounts {
@@ -91,7 +122,10 @@ func (mas *mockAccountingService) UpdateAccount(accountID string, updatedAccount
 			mas.accountTables["default"] = append(mas.accountTables["default"], account)
 		}
 	}
-	mas.accountTables["default"] = append(mas.accountTables[accountID], model.AccountTableDTO{AccountName: updatedAccount.AccountName})
+	mas.accountTables["default"] = append(
+		mas.accountTables[accountID],
+		model.AccountTableDTO{AccountName: updatedAccount.AccountName},
+	)
 	return nil
 }
 func (mas *mockAccountingService) DeleteAccount(accountID string) model.TokyError {
@@ -108,7 +142,11 @@ func (mas *mockAccountingService) CreateBooking(booking model.BookingDTO) model.
 	mas.bookings["default"] = append(mas.bookings["default"], booking)
 	return nil
 }
-func (mas *mockAccountingService) UpdateBooking(bookingID string, updatedBooking model.BookingDTO) model.TokyError {
+
+func (mas *mockAccountingService) UpdateBooking(
+	bookingID string,
+	updatedBooking model.BookingDTO,
+) model.TokyError {
 	oldBookings := mas.bookings["default"]
 	mas.bookings["default"] = []model.BookingDTO{}
 	for _, booking := range oldBookings {
@@ -129,6 +167,9 @@ func (mas *mockAccountingService) DeleteBooking(bookingID string) model.TokyErro
 	}
 	return nil
 }
-func (mas *mockAccountingService) ReadClosingStatements(bookID string) (model.ClosingSheetStatements, model.TokyError) {
+
+func (mas *mockAccountingService) ReadClosingStatements(
+	bookID string,
+) (model.ClosingSheetStatements, model.TokyError) {
 	return model.ClosingSheetStatements{BalanceSheet: model.BalanceSheet{}}, nil
 }

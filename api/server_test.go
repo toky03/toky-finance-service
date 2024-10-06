@@ -69,137 +69,213 @@ func TestServer_Start(t *testing.T) {
 		{
 			name: "Test readBookRealms",
 			fields: fields{
-				requestType:           "GET",
-				requestUrl:            "/api/book",
-				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "readBookRealms"},
+				requestType: "GET",
+				requestUrl:  "/api/book",
+				excpectedCallsInOrder: []string{
+					"measureRequest",
+					"authenticationMiddleware",
+					"readBookRealms",
+				},
 			},
 		},
 		{
 			name: "Test createBookRealm",
 			fields: fields{
-				requestType:           "POST",
-				requestUrl:            "/api/book",
-				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "createBookRealm"},
+				requestType: "POST",
+				requestUrl:  "/api/book",
+				excpectedCallsInOrder: []string{
+					"measureRequest",
+					"authenticationMiddleware",
+					"createBookRealm",
+				},
 			},
 		},
 		{
 			name: "Test updateBookRealm",
 			fields: fields{
-				requestType:           "PUT",
-				requestUrl:            "/api/book/123",
-				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "isOwner", "updateBookRealm"},
+				requestType: "PUT",
+				requestUrl:  "/api/book/123",
+				excpectedCallsInOrder: []string{
+					"measureRequest",
+					"authenticationMiddleware",
+					"isOwner",
+					"updateBookRealm",
+				},
 			},
 		},
 		{
 			name: "Test deleteBookRealm",
 			fields: fields{
-				requestType:           "DELETE",
-				requestUrl:            "/api/book/123",
-				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "isOwner", "deleteBookRealm"},
+				requestType: "DELETE",
+				requestUrl:  "/api/book/123",
+				excpectedCallsInOrder: []string{
+					"measureRequest",
+					"authenticationMiddleware",
+					"isOwner",
+					"deleteBookRealm",
+				},
 			},
 		},
 		{
 			name: "Test readBookRealmById",
 			fields: fields{
-				requestType:           "GET",
-				requestUrl:            "/api/book/123",
-				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "readBookRealmById"},
+				requestType: "GET",
+				requestUrl:  "/api/book/123",
+				excpectedCallsInOrder: []string{
+					"measureRequest",
+					"authenticationMiddleware",
+					"readBookRealmById",
+				},
 			},
 		},
 		{
 			name: "Test readAccounts",
 			fields: fields{
-				requestType:           "GET",
-				requestUrl:            "/api/book/123/account",
-				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "readAccounts"},
+				requestType: "GET",
+				requestUrl:  "/api/book/123/account",
+				excpectedCallsInOrder: []string{
+					"measureRequest",
+					"authenticationMiddleware",
+					"readAccounts",
+				},
 			},
 		},
 		{
 			name: "Test createAccount",
 			fields: fields{
-				requestType:           "POST",
-				requestUrl:            "/api/book/123/account",
-				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "hasWritePermissions", "createAccount"},
+				requestType: "POST",
+				requestUrl:  "/api/book/123/account",
+				excpectedCallsInOrder: []string{
+					"measureRequest",
+					"authenticationMiddleware",
+					"hasWritePermissions",
+					"createAccount",
+				},
 			},
 		},
 		{
 			name: "Test updateAccount",
 			fields: fields{
-				requestType:           "PUT",
-				requestUrl:            "/api/book/123/account/456",
-				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "hasWritePermissions", "updateAccount"},
+				requestType: "PUT",
+				requestUrl:  "/api/book/123/account/456",
+				excpectedCallsInOrder: []string{
+					"measureRequest",
+					"authenticationMiddleware",
+					"hasWritePermissions",
+					"updateAccount",
+				},
 			},
 		},
 		{
 			name: "Test deleteAccount",
 			fields: fields{
-				requestType:           "DELETE",
-				requestUrl:            "/api/book/123/account/456",
-				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "hasWritePermissions", "deleteAccount"},
+				requestType: "DELETE",
+				requestUrl:  "/api/book/123/account/456",
+				excpectedCallsInOrder: []string{
+					"measureRequest",
+					"authenticationMiddleware",
+					"hasWritePermissions",
+					"deleteAccount",
+				},
 			},
 		},
 		{
 			name: "Test readAccountOptions",
 			fields: fields{
-				requestType:           "GET",
-				requestUrl:            "/api/book/123/accountOption",
-				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "readAccountOptions"},
+				requestType: "GET",
+				requestUrl:  "/api/book/123/accountOption",
+				excpectedCallsInOrder: []string{
+					"measureRequest",
+					"authenticationMiddleware",
+					"readAccountOptions",
+				},
 			},
 		},
 		{
 			name: "Test readClosingStatements",
 			fields: fields{
-				requestType:           "GET",
-				requestUrl:            "/api/book/123/closingStatements",
-				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "readClosingStatements"},
+				requestType: "GET",
+				requestUrl:  "/api/book/123/closingStatements",
+				excpectedCallsInOrder: []string{
+					"measureRequest",
+					"authenticationMiddleware",
+					"readClosingStatements",
+				},
 			},
 		},
 		{
 			name: "Test readBookings",
 			fields: fields{
-				requestType:           "GET",
-				requestUrl:            "/api/book/123/booking",
-				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "readBookings"},
+				requestType: "GET",
+				requestUrl:  "/api/book/123/booking",
+				excpectedCallsInOrder: []string{
+					"measureRequest",
+					"authenticationMiddleware",
+					"readBookings",
+				},
 			},
 		},
 		{
 			name: "Test createBooking",
 			fields: fields{
-				requestType:           "POST",
-				requestUrl:            "/api/book/123/booking",
-				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "hasWritePermissions", "createBooking"},
+				requestType: "POST",
+				requestUrl:  "/api/book/123/booking",
+				excpectedCallsInOrder: []string{
+					"measureRequest",
+					"authenticationMiddleware",
+					"hasWritePermissions",
+					"createBooking",
+				},
 			},
 		},
 		{
 			name: "Test updateBooking",
 			fields: fields{
-				requestType:           "PUT",
-				requestUrl:            "/api/book/123/booking/789",
-				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "hasWritePermissions", "updateBooking"},
+				requestType: "PUT",
+				requestUrl:  "/api/book/123/booking/789",
+				excpectedCallsInOrder: []string{
+					"measureRequest",
+					"authenticationMiddleware",
+					"hasWritePermissions",
+					"updateBooking",
+				},
 			},
 		},
 		{
 			name: "Test deleteBooking",
 			fields: fields{
-				requestType:           "DELETE",
-				requestUrl:            "/api/book/123/booking/789",
-				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "hasWritePermissions", "deleteBooking"},
+				requestType: "DELETE",
+				requestUrl:  "/api/book/123/booking/789",
+				excpectedCallsInOrder: []string{
+					"measureRequest",
+					"authenticationMiddleware",
+					"hasWritePermissions",
+					"deleteBooking",
+				},
 			},
 		},
 		{
 			name: "Test createUser",
 			fields: fields{
-				requestType:           "POST",
-				requestUrl:            "/api/user",
-				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "createUser"},
+				requestType: "POST",
+				requestUrl:  "/api/user",
+				excpectedCallsInOrder: []string{
+					"measureRequest",
+					"authenticationMiddleware",
+					"createUser",
+				},
 			},
 		},
 		{
 			name: "Test readUser",
 			fields: fields{
-				requestType:           "GET",
-				requestUrl:            "/api/user",
-				excpectedCallsInOrder: []string{"measureRequest", "authenticationMiddleware", "readAccountingUsers"},
+				requestType: "GET",
+				requestUrl:  "/api/user",
+				excpectedCallsInOrder: []string{
+					"measureRequest",
+					"authenticationMiddleware",
+					"readAccountingUsers",
+				},
 			},
 		},
 	}
@@ -210,7 +286,12 @@ func TestServer_Start(t *testing.T) {
 			monitoringHandler := MockMonitoringHandler{}
 			authenticationHandler := MockAuthenticationHandler{}
 
-			handlerCallMap := createCallNamesHandlerMap(&bookHandler, &monitoringHandler, &accountingHandler, &authenticationHandler)
+			handlerCallMap := createCallNamesHandlerMap(
+				&bookHandler,
+				&monitoringHandler,
+				&accountingHandler,
+				&authenticationHandler,
+			)
 
 			accountingHandler.resetCalls()
 			bookHandler.resetCalls()
@@ -243,7 +324,12 @@ func TestServer_Start(t *testing.T) {
 					t.Errorf("%s: expected call %s, but got %s", tt.name, callName, call.name)
 				}
 				if call.time.Before(lastTime) {
-					t.Errorf("%s: expected call %s to be after %v, but it was before", tt.name, call.name, lastTime)
+					t.Errorf(
+						"%s: expected call %s to be after %v, but it was before",
+						tt.name,
+						call.name,
+						lastTime,
+					)
 				}
 				lastTime = call.time
 			}
@@ -255,15 +341,24 @@ func TestServer_Start(t *testing.T) {
 			}
 			callsMonitoringHandler := monitoringHandler.readCalls()
 			if len(callsMonitoringHandler) > 0 {
-				t.Errorf("expected no more calls for monitoringHandler, but got %v", callsMonitoringHandler)
+				t.Errorf(
+					"expected no more calls for monitoringHandler, but got %v",
+					callsMonitoringHandler,
+				)
 			}
 			callsAccountingHandler := accountingHandler.readCalls()
 			if len(callsAccountingHandler) > 0 {
-				t.Errorf("expected no more calls for accountingHandler, but got %v", callsAccountingHandler)
+				t.Errorf(
+					"expected no more calls for accountingHandler, but got %v",
+					callsAccountingHandler,
+				)
 			}
 			callsAuthenticationHandler := authenticationHandler.readCalls()
 			if len(callsAuthenticationHandler) > 0 {
-				t.Errorf("expected no more calls for authenticationHandler, but got %v", callsAuthenticationHandler)
+				t.Errorf(
+					"expected no more calls for authenticationHandler, but got %v",
+					callsAuthenticationHandler,
+				)
 			}
 		})
 	}

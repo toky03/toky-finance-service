@@ -183,13 +183,17 @@ type MockAuthenticationHandler struct {
 
 func (mah *MockAuthenticationHandler) AuthenticationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		mah.appendCall(Call{name: "authenticationMiddleware", params: map[string]string{}, time: time.Now()})
+		mah.appendCall(
+			Call{name: "authenticationMiddleware", params: map[string]string{}, time: time.Now()},
+		)
 		next.ServeHTTP(w, r)
 	})
 }
 func (mah *MockAuthenticationHandler) HasWritePermissions(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		mah.appendCall(Call{name: "hasWritePermissions", params: map[string]string{}, time: time.Now()})
+		mah.appendCall(
+			Call{name: "hasWritePermissions", params: map[string]string{}, time: time.Now()},
+		)
 		next.ServeHTTP(w, r)
 	})
 

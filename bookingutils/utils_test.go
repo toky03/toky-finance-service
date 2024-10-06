@@ -31,7 +31,11 @@ func TestStringSliceToInt(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(gotConvertedUints, tt.wantConvertedUints) {
-				t.Errorf("StringSliceToInt() = %v, want %v", gotConvertedUints, tt.wantConvertedUints)
+				t.Errorf(
+					"StringSliceToInt() = %v, want %v",
+					gotConvertedUints,
+					tt.wantConvertedUints,
+				)
 			}
 		})
 	}

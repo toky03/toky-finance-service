@@ -174,7 +174,7 @@ func (s *accountingServiceImpl) UpdateAccount(accountID string, account model.Ac
 func (s *accountingServiceImpl) readAccountById(accountID string) (model.AccountTableEntity, model.TokyError) {
 	accountIDUint, err := bookingutils.StringToUint(accountID)
 	if err != nil {
-		return model.AccountTableEntity{}, model.CreateBusinessError(fmt.Sprintf("Could not convert account Id: %s", accountIDUint), err)
+		return model.AccountTableEntity{}, model.CreateBusinessError(fmt.Sprintf("Could not convert account Id: %d", accountIDUint), err)
 	}
 
 	accountEntity, repoErr := s.AccountingRepository.FindAccountByID(accountIDUint)
