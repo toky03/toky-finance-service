@@ -3,6 +3,7 @@ package model
 import (
 	"github.com/jinzhu/gorm"
 	"github.com/toky03/toky-finance-accounting-service/bookingutils"
+	"github.com/toky03/toky-finance-accounting-service/types"
 )
 
 type ApplicationUserEntity struct {
@@ -39,13 +40,13 @@ type ReadApplicationUserWrapper struct {
 type AccountTableEntity struct {
 	gorm.Model
 	BookRealmEntityID uint
-	BookRealmEntity   BookRealmEntity `gorm:"PRELOAD:true"`
-	Category          string          `gorm:"category"`
-	Description       string          `gorm:"description"`
-	AccountName       string          `gorm:"accountName"`
-	Type              string          `gorm:"account_type"`
-	SubCategory       string          `gorm:"sub_category"`
-	StartBalance      string          `gorm:"start_balance"`
+	BookRealmEntity   BookRealmEntity          `gorm:"PRELOAD:true"`
+	Category          types.AccountCategory    `gorm:"category"`
+	Description       string                   `gorm:"description"`
+	AccountName       string                   `gorm:"accountName"`
+	Type              types.AccountType        `gorm:"account_type"`
+	SubCategory       types.AccountSubCategory `gorm:"sub_category"`
+	StartBalance      string                   `gorm:"start_balance"`
 }
 
 type BookingEntity struct {
@@ -92,11 +93,11 @@ func (bookingEntity BookingEntity) ToBookingDTO() BookingDTO {
 	}
 }
 
-func (bookingEntity BookingEntity) ToTableBookingDTO(column string) TableBookingDTO {
+func (bookingEntity BookingEntity) ToTableBookingDTO(column types.SaldierungColumnType) TableBookingDTO {
 	var bookingAccount string
-	if column == "haben" {
+	if column == types.SaldierungColumnHaben {
 		bookingAccount = bookingEntity.SollBookingAccount.AccountName
-	} else if column == "soll" {
+	} else if column == types.SaldierungColumnSoll {
 		bookingAccount = bookingEntity.HabenBookingAccount.AccountName
 	}
 	return TableBookingDTO{

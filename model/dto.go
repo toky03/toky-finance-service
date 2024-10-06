@@ -3,6 +3,8 @@ package model
 import (
 	"strings"
 	"time"
+
+	"github.com/toky03/toky-finance-accounting-service/types"
 )
 
 type ApplicationUserDTO struct {
@@ -28,35 +30,35 @@ type BookRealmDTO struct {
 }
 
 type AccountTableDTO struct {
-	AccountName      string            `json:"accountName"`
-	AccountID        string            `json:"accountId"`
-	Bookings         []TableBookingDTO `json:"bookings"`
-	AccountSum       string            `json:"accountSum"`
-	Type             string            `json:"type"`
-	Category         string            `json:"category"`
-	SubCategory      string            `json:"subCategory"`
-	Description      string            `json:"description"`
-	Saldo            string            `json:"-"`
-	SaldierungColumn string            `json:"-"`
+	AccountName      string                     `json:"accountName"`
+	AccountID        string                     `json:"accountId"`
+	Bookings         []TableBookingDTO          `json:"bookings"`
+	AccountSum       string                     `json:"accountSum"`
+	Type             types.AccountType          `json:"type"`
+	Category         types.AccountCategory      `json:"category"`
+	SubCategory      types.AccountSubCategory   `json:"subCategory"`
+	Description      string                     `json:"description"`
+	Saldo            string                     `json:"-"`
+	SaldierungColumn types.SaldierungColumnType `json:"-"`
 }
 
 type TableBookingDTO struct {
-	BookingID      string `json:"bookingID"`
-	Date           string `json:"date"`
-	Column         string `json:"column"`
-	BookingAccount string `json:"bookingAccount"`
-	Ammount        string `json:"ammount"`
-	Description    string `json:"description"`
+	BookingID      string                     `json:"bookingID"`
+	Date           string                     `json:"date"`
+	Column         types.SaldierungColumnType `json:"column"`
+	BookingAccount string                     `json:"bookingAccount"`
+	Ammount        string                     `json:"ammount"`
+	Description    string                     `json:"description"`
 }
 
 type AccountOptionDTO struct {
-	AccountName  string `json:"accountName"`
-	Id           string `json:"accountId"`
-	Type         string `json:"type"`
-	Category     string `json:"category"`
-	Description  string `json:"description"`
-	SubCategory  string `json:"subCategory"`
-	StartBalance string `json:"startBalance"`
+	AccountName  string                   `json:"accountName"`
+	Id           string                   `json:"accountId"`
+	Type         types.AccountType        `json:"type"`
+	Category     types.AccountCategory    `json:"category"`
+	Description  string                   `json:"description"`
+	SubCategory  types.AccountSubCategory `json:"subCategory"`
+	StartBalance string                   `json:"startBalance"`
 }
 
 type BookingDTO struct {

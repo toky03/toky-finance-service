@@ -6,6 +6,7 @@ import (
 
 	"github.com/jinzhu/gorm"
 	"github.com/toky03/toky-finance-accounting-service/model"
+	"github.com/toky03/toky-finance-accounting-service/types"
 )
 
 func Test_accountingServiceImpl_ReadClosingStatements(t *testing.T) {
@@ -51,13 +52,22 @@ func Test_accountingServiceImpl_ReadClosingStatements(t *testing.T) {
 			"One Single Booking",
 			fields{
 				bookings: []model.BookingEntity{{
-					HabenBookingAccountID: 2,
-					SollBookingAccountID:  1,
+					HabenBookingAccountID: 1,
+					SollBookingAccountID:  2,
 					Ammount:               "20.0",
 				}},
 				accounts: []model.AccountTableEntity{
-					{Model: gorm.Model{ID: 1}, AccountName: "Lohn", Category: "gain"},
-					{Model: gorm.Model{ID: 2}, AccountName: "Lohnkonto", Type: "inventory", Category: "passive"},
+					{
+						Model:       gorm.Model{ID: 1},
+						AccountName: "Lohn",
+						Category:    types.AccountCategoryGain,
+					},
+					{
+						Model:       gorm.Model{ID: 2},
+						AccountName: "Lohnkonto",
+						Type:        types.AccountTypeInventory,
+						Category:    types.AccountCategoryActive,
+					},
 				},
 			},
 			args{"0"},
@@ -65,13 +75,125 @@ func Test_accountingServiceImpl_ReadClosingStatements(t *testing.T) {
 				BalanceSheet: model.BalanceSheet{
 					WorkingCapital: []model.ClosingStatementEntry{},
 					Debt:           []model.ClosingStatementEntry{},
-					CapitalAsset:   []model.ClosingStatementEntry{},
-					Equity:         []model.ClosingStatementEntry{},
-					BalanceSum:     "20.00",
+					CapitalAsset: []model.ClosingStatementEntry{
+						{
+							Name:    "Lohnkonto",
+							Ammount: "20.00",
+						},
+					},
+					Equity: []model.ClosingStatementEntry{
+						{
+							Name:    "Überschuss",
+							Ammount: "20.00",
+						},
+					},
+					BalanceSum: "20.00",
 				},
 				IncomeStatement: model.IncomeStatement{
-					Creds:      []model.ClosingStatementEntry{{Name: "Lohn"}},
-					Debts:      []model.ClosingStatementEntry{},
+					Creds: []model.ClosingStatementEntry{
+						{Name: "Lohn", Ammount: "20.00"},
+					},
+					Debts: []model.ClosingStatementEntry{
+						{Name: "Gewinn", Ammount: "20.00"},
+					},
+					BalanceSum: "20.00",
+				},
+			},
+			nil,
+		},
+		{
+			"Multiple Bookings on different accounts",
+			fields{
+				bookings: []model.BookingEntity{
+					{
+						Description:           "Verkaufen von Produkten",
+						HabenBookingAccountID: 1, // Verkaufserlös
+						SollBookingAccountID:  2, // Bankkonto
+						Ammount:               "20.0",
+					},
+					{
+						Description:           "Erhoehen von Aktienkapital mit einzahlung auf Bankkonto",
+						HabenBookingAccountID: 3, // Aktienkapital
+						SollBookingAccountID:  2, // Bankkonto
+						Ammount:               "100.0",
+					},
+					{
+						Description:           "Kaufen von Maschinen",
+						HabenBookingAccountID: 2,
+						SollBookingAccountID:  4,
+						Ammount:               "50",
+					},
+				},
+				accounts: []model.AccountTableEntity{
+					{
+						Model:       gorm.Model{ID: 1},
+						AccountName: "Verkaufserlös",
+						Category:    types.AccountCategoryGain,
+					},
+					{
+						Model:        gorm.Model{ID: 2},
+						AccountName:  "Bankkonto",
+						Type:         types.AccountTypeInventory,
+						Category:     types.AccountCategoryActive,
+						SubCategory:  types.AccountSubCategoryWorkingCapital,
+						StartBalance: "500",
+					},
+					{
+						Model: gorm.Model{
+							ID: 3,
+						}, AccountName: "Aktienkapital",
+						Type:         types.AccountTypeInventory,
+						Category:     types.AccountCategoryPassive,
+						SubCategory:  types.AccountSubCategoryCapitalAsset,
+						StartBalance: "300.00",
+					},
+					{
+						Model: gorm.Model{
+							ID: 4,
+						},
+						AccountName:  "Maschinen",
+						StartBalance: "5",
+						Category:     types.AccountCategoryActive,
+						SubCategory:  types.AccountSubCategoryEquity,
+						Type:         types.AccountTypeInventory,
+					},
+				},
+			},
+			args{"0"},
+			model.ClosingSheetStatements{
+				BalanceSheet: model.BalanceSheet{
+					WorkingCapital: []model.ClosingStatementEntry{
+						{
+							Name:    "Bankkonto",
+							Ammount: "570.00",
+						},
+					},
+					Debt: []model.ClosingStatementEntry{},
+					CapitalAsset: []model.ClosingStatementEntry{
+						{
+							Name:    "Maschinen",
+							Ammount: "55.00",
+						},
+					},
+					Equity: []model.ClosingStatementEntry{
+						{
+							Name:    "Aktienkapital",
+							Ammount: "400.00",
+						},
+						{
+							Name:    "Überschuss",
+							Ammount: "225.00",
+						},
+					},
+					BalanceSum: "625.00",
+				},
+				IncomeStatement: model.IncomeStatement{
+					Creds: []model.ClosingStatementEntry{
+						{Name: "Verkaufserlös", Ammount: "20.00"},
+					},
+					Debts: []model.ClosingStatementEntry{
+						{Name: "Gewinn", Ammount: "20.00"},
+					},
 					BalanceSum: "20.00",
 				},
 			},
@@ -86,10 +208,14 @@ func Test_accountingServiceImpl_ReadClosingStatements(t *testing.T) {
 			mockAccountingRepository.SetBookings(tt.fields.bookings)
 			got, got1 := s.ReadClosingStatements(tt.args.bookId)
 			if !reflect.DeepEqual(got, tt.wantClosingStatements) {
-				t.Errorf("ReadClosingStatements() got = %v, want %v", got, tt.wantClosingStatements)
+				t.Errorf(
+					"ReadClosingStatements() got = \n%+v,\n want\n %+v",
+					got,
+					tt.wantClosingStatements,
+				)
 			}
 			if !reflect.DeepEqual(got1, tt.wantErr) {
-				t.Errorf("ReadClosingStatements() got1 = %v, want %v", got1, tt.wantErr)
+				t.Errorf("ReadClosingStatements() got1 = \n%#v,\nwant = \n%#v", got1, tt.wantErr)
 			}
 		})
 	}
@@ -123,7 +249,7 @@ func Test_appendSaldo(t *testing.T) {
 		want  []model.TableBookingDTO
 		want1 string
 		want2 string
-		want3 string
+		want3 types.SaldierungColumnType
 		want4 model.TokyError
 	}{
 		// TODO: Add test cases.
@@ -153,7 +279,7 @@ func Test_appendSaldo(t *testing.T) {
 func Test_calculateSum(t *testing.T) {
 	type args struct {
 		buchungen []model.TableBookingDTO
-		column    string
+		column    types.SaldierungColumnType
 	}
 	tests := []struct {
 		name  string
