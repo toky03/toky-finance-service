@@ -55,10 +55,10 @@ func (h *bookRealmHandler) ReadBookRealmById(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *bookRealmHandler) ReadBookRealms(w http.ResponseWriter, r *http.Request) {
-	userId, ok := r.Context().Value("user-id").(string)
+	userId, ok := r.Context().Value(USER_ID).(string)
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("Missing user-id"))
+		w.Write([]byte("Missing " + USER_ID))
 	}
 	bookRealms, err := h.bookRealmService.FindBookRealmsPermittedForUser(userId)
 	if model.IsExisting(err) {
@@ -83,10 +83,10 @@ func (h *bookRealmHandler) CreateBookRealm(w http.ResponseWriter, r *http.Reques
 		http.Error(w, decoderError.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-	userId, ok := r.Context().Value("user-id").(string)
+	userId, ok := r.Context().Value(USER_ID).(string)
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("Missing user-id"))
+		w.Write([]byte("Missing " + USER_ID))
 	}
 	createRealmErr := h.bookRealmService.CreateBookRealm(bookRealm, userId)
 	if model.IsExisting(createRealmErr) {
